@@ -1,0 +1,83 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 防火墙规则表格美化样式 */
+.custom-table .ant-table-thead > tr > th {
+  background: linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%);
+  border-bottom: 2px solid #e8e8e8;
+  font-weight: 600;
+  color: #262626;
+  padding: 16px 12px;
+}
+
+.custom-table .ant-table-tbody > tr > td {
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.custom-table .ant-table-tbody > tr:hover > td {
+  background-color: #f6f8ff !important;
+}
+
+.table-row-light {
+  background-color: #ffffff;
+}
+
+.table-row-dark {
+  background-color: #fafafa;
+}
+
+/* 分页器美化 */
+.custom-table .ant-pagination {
+  margin-top: 16px;
+}
+
+.custom-table .ant-pagination-item {
+  border-radius: 6px;
+}
+
+.custom-table .ant-pagination-item-active {
+  background: #1890ff;
+  border-color: #1890ff;
+}
+
+/* 按钮美化 */
+.custom-table .ant-btn {
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.custom-table .ant-btn-primary {
+  box-shadow: 0 2px 4px rgba(24, 144, 255, 0.2);
+}

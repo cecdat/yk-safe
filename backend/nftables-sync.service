@@ -1,0 +1,26 @@
+[Unit]
+Description=NFTables Sync Service for YK-Safe
+After=network.target nftables.service
+Wants=nftables.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/yk-safe/backend
+Environment=PYTHONPATH=/opt/yk-safe/backend
+ExecStart=/opt/yk-safe/backend/venv/bin/python /opt/yk-safe/backend/start_sync_service.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# 安全设置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/etc/nftables.conf /etc/nftables.conf.backup
+
+[Install]
+WantedBy=multi-user.target

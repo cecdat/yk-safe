@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>白名单IP申请 - 封神云防护系统</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #1890ff;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .form-item {
+            margin-bottom: 24px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #d9d9d9;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #1890ff;
+            box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1);
+        }
+        
+        .form-input:read-only {
+            background-color: #f5f5f5;
+            color: #666;
+        }
+        
+        .ip-input-hint {
+            margin-top: 6px;
+            margin-bottom: 8px;
+        }
+        
+        .ip-input-hint small {
+            color: #666;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .ip-validation-hint {
+            margin-top: 6px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.4;
+            display: none;
+        }
+        
+        .ip-validation-hint.success {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #52c41a;
+        }
+        
+        .ip-validation-hint.warning {
+            background: #fff7e6;
+            border: 1px solid #ffd591;
+            color: #fa8c16;
+        }
+        
+        .ip-validation-hint.error {
+            background: #fff2f0;
+            border: 1px solid #ffccc7;
+            color: #ff4d4f;
+        }
+        .btn {
+            width: 100%;
+            padding: 12px 24px;
+            background: #1890ff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .alert {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .alert-warning {
+            background: #fff7e6;
+            border: 1px solid #ffd591;
+            color: #fa8c16;
+        }
+        .alert-success {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #52c41a;
+        }
+        .alert-error {
+            background: #fff2f0;
+            border: 1px solid #ffccc7;
+            color: #ff4d4f;
+        }
+        
+        /* IP位置信息样式 */
+        .ip-location-info {
+            margin-top: 8px;
+            padding: 12px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 1px solid #bae6fd;
+            display: none;
+        }
+        
+        .ip-location-info.show {
+            display: block;
+            animation: fadeInUp 0.3s ease-out;
+        }
+        
+        .ip-location-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #0369a1;
+        }
+        
+        .ip-location-header .icon {
+            margin-right: 6px;
+            font-size: 14px;
+        }
+        
+        .ip-location-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 13px;
+        }
+        
+        .location-item {
+            display: flex;
+            align-items: center;
+            color: #0c4a6e;
+        }
+        
+        .location-item .label {
+            font-weight: 500;
+            margin-right: 4px;
+        }
+        
+        .location-item .value {
+            color: #0369a1;
+        }
+        
+        .location-item .flag {
+            margin-right: 4px;
+            font-size: 12px;
+        }
+        
+        .location-loading {
+            display: flex;
+            align-items: center;
+            color: #0369a1;
+            font-size: 13px;
+        }
+        
+        .location-loading .spinner {
+            width: 12px;
+            height: 12px;
+            border: 2px solid #bae6fd;
+            border-top: 2px solid #0369a1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 6px;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 600px) {
+            .ip-location-details {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .location-item {
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <div>
+                    <h1>🔒 白名单IP申请</h1>
+                    <p>请填写以下信息申请将您的IP地址添加到白名单</p>
+                </div>
+            </div>
+
+            <div id="proxy-warning" class="alert alert-warning" style="display: none;">
+                <!-- 代理警告内容将由JavaScript动态生成 -->
+            </div>
+            
+
+
+            <form id="whitelist-form">
+                <div class="form-item">
+                    <label class="form-label">🏢 公司名称 *</label>
+                    <input type="text" id="company-name" class="form-input" placeholder="请输入您的公司名称" required>
+                </div>
+
+                <div class="form-item">
+                    <label class="form-label">🔑 申请Token *</label>
+                    <input type="text" id="token" class="form-input" placeholder="请输入申请Token" required>
+                </div>
+
+                <div class="form-item">
+                    <label class="form-label">📍 IP地址 *</label>
+                    <input type="text" id="ip-address" class="form-input" placeholder="自动获取中..." readonly>
+                    <div class="ip-input-hint">
+                        <small class="text-muted">💡 系统会自动获取您的IP地址，您也可以手动输入或修改</small>
+                    </div>
+                    <div id="ip-location-info" class="ip-location-info">
+                        <div class="ip-location-header">
+                            <span class="icon">🌍</span>
+                            <span>IP地址位置信息</span>
+                        </div>
+                        <div id="ip-location-content">
+                            <div class="spinner"></div>
+                            <span>正在获取位置信息...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" id="submit-btn" class="btn" disabled>
+                    提交申请
+                </button>
+            </form>
+
+            <div id="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/api/whitelist';
+
+        // 页面加载时检测网络环境
+        document.addEventListener('DOMContentLoaded', async function() {
+            await detectNetworkEnvironment();
+            
+            // 为IP地址输入框添加事件监听器
+            const ipInput = document.getElementById('ip-address');
+            ipInput.addEventListener('input', async function() {
+                // 实时验证IP地址格式
+                const isValid = validateIPInput(this);
+                
+                if (isValid) {
+                    const ip = this.value.trim();
+                    // 获取IP位置信息
+                    const locationData = await getIpLocationInfo(ip);
+                    if (locationData && locationData.success) {
+                        showIpLocationInfo(ip, locationData);
+                    }
+                } else {
+                    hideIpLocationInfo();
+                }
+            });
+            
+            // 添加失焦验证
+            ipInput.addEventListener('blur', function() {
+                const ip = this.value.trim();
+                if (ip) {
+                    validateIPInput(this);
+                }
+            });
+            
+            // 添加焦点事件，当用户点击输入框时显示提示
+            ipInput.addEventListener('focus', function() {
+                if (this.readOnly) {
+                    this.placeholder = '正在自动获取IP地址...';
+                } else {
+                    this.placeholder = '请输入您的公网IP地址';
+                }
+            });
+            
+            // 添加失焦事件，当用户完成输入后恢复提示
+            ipInput.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.placeholder = 'IP地址已输入，您可以继续修改';
+                } else {
+                    this.placeholder = '请手动输入您的公网IP地址';
+                }
+            });
+        });
+
+        // IP地址验证函数
+        function isValidIP(ip) {
+            if (!ip || typeof ip !== 'string') {
+                return false;
+            }
+            
+            const ipPattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+            return ipPattern.test(ip.trim());
+        }
+        
+        // 检查是否为私有IP地址
+        function isPrivateIP(ip) {
+            if (!isValidIP(ip)) {
+                return false;
+            }
+            
+            const parts = ip.split('.').map(Number);
+            const first = parts[0];
+            const second = parts[1];
+            
+            // 私有IP地址范围
+            return (
+                // 10.0.0.0 - 10.255.255.255
+                (first === 10) ||
+                // 172.16.0.0 - 172.31.255.255
+                (first === 172 && second >= 16 && second <= 31) ||
+                // 192.168.0.0 - 192.168.255.255
+                (first === 192 && second === 168) ||
+                // 127.0.0.0 - 127.255.255.255 (本地回环)
+                (first === 127) ||
+                // 169.254.0.0 - 169.254.255.255 (链路本地)
+                (first === 169 && second === 254) ||
+                // 0.0.0.0 - 0.255.255.255
+                (first === 0)
+            );
+        }
+        
+        // 检查是否为公网IP地址
+        function isPublicIP(ip) {
+            return isValidIP(ip) && !isPrivateIP(ip);
+        }
+        
+        // 实时IP地址验证和提示
+        function validateIPInput(input) {
+            const ip = input.value.trim();
+            const hintElement = input.parentNode.querySelector('.ip-validation-hint');
+            
+            if (!ip) {
+                if (hintElement) {
+                    hintElement.style.display = 'none';
+                }
+                return false;
+            }
+            
+            if (!isValidIP(ip)) {
+                showIPValidationHint(input, '❌ IP地址格式不正确，请输入有效的IPv4地址', 'error');
+                return false;
+            }
+            
+            if (isPrivateIP(ip)) {
+                showIPValidationHint(input, '⚠️ 检测到私有IP地址，请确保输入的是您的公网IP地址', 'warning');
+                return false;
+            }
+            
+            if (isPublicIP(ip)) {
+                showIPValidationHint(input, '✅ IP地址格式正确', 'success');
+                return true;
+            }
+            
+            return false;
+        }
+        
+        // 显示IP验证提示
+        function showIPValidationHint(input, message, type) {
+            let hintElement = input.parentNode.querySelector('.ip-validation-hint');
+            
+            if (!hintElement) {
+                hintElement = document.createElement('div');
+                hintElement.className = 'ip-validation-hint';
+                input.parentNode.appendChild(hintElement);
+            }
+            
+            hintElement.textContent = message;
+            hintElement.className = `ip-validation-hint ${type}`;
+            hintElement.style.display = 'block';
+        }
+
+        // 检测网络环境
+        // 在detectNetworkEnvironment函数中添加IP验证
+        async function detectNetworkEnvironment() {
+            try {
+                console.log('开始检测网络环境...');
+                console.log('API基础URL:', API_BASE);
+                
+                // 尝试多种方式获取用户IP地址
+                let publicIp = null;
+                let ipSource = '';
+                
+                // 方法1: 尝试使用第三方IP检测服务
+                try {
+                    console.log('正在通过第三方服务获取公网IP...');
+                    const thirdPartyResponse = await fetch('https://api.ipify.org?format=json', {
+                        method: 'GET',
+                        signal: AbortSignal.timeout(5000) // 5秒超时
+                    });
+                    
+                    if (thirdPartyResponse.ok) {
+                        const thirdPartyData = await thirdPartyResponse.json();
+                        publicIp = thirdPartyData.ip;
+                        ipSource = '第三方服务';
+                        console.log('第三方服务获取IP成功:', publicIp);
+                    }
+                } catch (thirdPartyError) {
+                    console.log('第三方服务获取IP失败:', thirdPartyError.message);
+                }
+                
+                // 方法2: 如果第三方服务失败，尝试后端API
+                if (!publicIp) {
+                    try {
+                        console.log('正在通过后端API获取公网IP...');
+                        const ipResponse = await fetch(`${API_BASE}/public/ip`, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json',
+                            },
+                            signal: AbortSignal.timeout(8000) // 8秒超时
+                        });
+                        
+                        if (ipResponse.ok) {
+                            const ipData = await ipResponse.json();
+                            console.log('后端API IP数据:', ipData);
+                            publicIp = ipData.ip;
+                            ipSource = '后端API';
+                        }
+                    } catch (backendError) {
+                        console.log('后端API获取IP失败:', backendError.message);
+                    }
+                }
+                
+                // 验证获取到的IP地址
+                if (!publicIp || !isValidIP(publicIp) || isPrivateIP(publicIp)) {
+                    console.log('获取到的IP地址无效或为私有IP:', publicIp);
+                    // 允许用户手动输入
+                    document.getElementById('ip-address').readOnly = false;
+                    document.getElementById('ip-address').placeholder = '请手动输入您的公网IP地址';
+                    showAlert('无法自动获取您的公网IP，请手动输入', 'warning');
+                    document.getElementById('submit-btn').disabled = false;
+                    return;
+                }
+                
+                console.log(`通过${ipSource}成功获取IP地址:`, publicIp);
+                
+                // 检测代理状态
+                console.log('正在检测代理状态...');
+                const proxyResponse = await fetch(`${API_BASE}/public/proxy-check`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                    signal: AbortSignal.timeout(5000) // 5秒超时
+                });
+                console.log('代理响应状态:', proxyResponse.status);
+                
+                if (!proxyResponse.ok) {
+                    const errorText = await proxyResponse.text();
+                    console.error('代理检测响应内容:', errorText);
+                    throw new Error(`代理检测失败: ${proxyResponse.status} ${proxyResponse.statusText}`);
+                }
+                
+                const proxyData = await proxyResponse.json();
+                console.log('代理数据:', proxyData);
+                
+                // 更新页面显示并允许用户编辑
+                document.getElementById('ip-address').value = publicIp;
+                document.getElementById('ip-address').readOnly = false;
+                document.getElementById('ip-address').placeholder = 'IP地址已自动获取，您也可以手动修改';
+                
+                // 调试信息：在控制台显示代理检测结果
+                console.log('代理检测结果:', {
+                    is_proxy: proxyData.is_proxy,
+                    confidence: proxyData.confidence,
+                    proxy_type: proxyData.proxy_type,
+                    country: proxyData.country,
+                    city: proxyData.city,
+                    isp: proxyData.isp
+                });
+
+                // 更新调试信息区域
+                updateDebugInfo(proxyData);
+
+                // 改进的代理检测逻辑：只有在明确检测到代理时才显示警告
+                if (proxyData.is_proxy && proxyData.confidence && proxyData.confidence > 0.8) {
+                    // 高置信度的代理检测，显示明确的警告
+                    const proxyWarning = document.getElementById('proxy-warning');
+                    proxyWarning.style.display = 'block';
+                    proxyWarning.className = 'alert alert-warning';
+                    
+                    // 如果有代理详细信息，显示更具体的警告
+                    if (proxyData.proxy_type) {
+                        proxyWarning.innerHTML = `
+                            <strong>⚠️ 代理检测警告：</strong>
+                            检测到您可能正在使用${proxyData.proxy_type}，这可能会影响IP地址的准确性。
+                            <br><small>检测置信度: ${Math.round(proxyData.confidence * 100)}%</small>
+                        `;
+                    } else {
+                        proxyWarning.innerHTML = `
+                            <strong>⚠️ 代理检测警告：</strong>
+                            检测到您可能正在使用代理或VPN，这可能会影响IP地址的准确性。
+                            <br><small>检测置信度: ${Math.round(proxyData.confidence * 100)}%</small>
+                        `;
+                    }
+                } else if (proxyData.is_proxy && proxyData.confidence && proxyData.confidence > 0.6) {
+                    // 中等置信度的代理检测，显示温和的提示
+                    const proxyWarning = document.getElementById('proxy-warning');
+                    proxyWarning.style.display = 'block';
+                    proxyWarning.className = 'alert alert-warning';
+                    proxyWarning.innerHTML = `
+                        <strong>ℹ️ 网络环境提示：</strong>
+                        系统检测到您的网络环境可能有些特殊，但不影响正常使用。
+                        <br><small>检测置信度: ${Math.round(proxyData.confidence * 100)}% | 如果IP地址显示不正确，请手动输入您的真实公网IP地址</small>
+                    `;
+                } else if (proxyData.is_proxy && (!proxyData.confidence || proxyData.confidence <= 0.6)) {
+                    // 低置信度的代理检测，可能是误判，不显示警告
+                    console.log('代理检测置信度过低，可能是误判，不显示警告');
+                } else {
+                    // 没有检测到代理，确保警告不显示
+                    document.getElementById('proxy-warning').style.display = 'none';
+                }
+                
+                // 获取IP位置信息
+                console.log('正在获取IP位置信息...');
+                const locationData = await getIpLocationInfo(publicIp);
+                if (locationData && locationData.success) {
+                    showIpLocationInfo(publicIp, locationData);
+                }
+                
+                document.getElementById('submit-btn').disabled = false;
+                console.log('网络环境检测完成');
+                
+            } catch (error) {
+                console.error('网络环境检测失败:', error);
+                console.error('错误详情:', error.message);
+                
+                // 提供更详细的错误信息
+                let errorMessage = `网络环境检测失败: ${error.message}`;
+                if (error.message.includes('502')) {
+                    errorMessage = '网络环境检测失败: 后端服务暂时不可用，请稍后重试';
+                } else if (error.message.includes('fetch')) {
+                    errorMessage = '网络环境检测失败: 无法连接到服务器，请检查网络连接';
+                } else if (error.name === 'TimeoutError') {
+                    errorMessage = '网络环境检测超时，请检查网络连接或稍后重试';
+                } else if (error.message.includes('AbortError')) {
+                    errorMessage = '网络请求被中断，请稍后重试';
+                }
+                
+                showAlert(errorMessage, 'error');
+                
+                // 重要：无论什么错误，都要确保用户能手动输入IP地址
+                document.getElementById('ip-address').readOnly = false;
+                document.getElementById('ip-address').placeholder = '请手动输入您的公网IP地址';
+                document.getElementById('submit-btn').disabled = false;
+                
+                // 显示手动输入提示
+                showAlert('由于自动检测失败，请手动输入您的公网IP地址', 'warning');
+            }
+        }
+
+        // 显示提示信息
+        function showAlert(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.innerHTML = message;
+            
+            const form = document.getElementById('whitelist-form');
+            form.parentNode.insertBefore(alertDiv, form);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+
+        // 获取IP位置信息
+        async function getIpLocationInfo(ipAddress) {
+            try {
+                const response = await fetch(`${API_BASE}/public/ip-location`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ ip: ipAddress }),
+                    signal: AbortSignal.timeout(8000) // 8秒超时
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`位置信息获取失败: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('获取IP位置信息失败:', error);
+                return null;
+            }
+        }
+
+
+
+        // 显示IP位置信息
+        function showIpLocationInfo(ipAddress, locationData) {
+            const locationInfo = document.getElementById('ip-location-info');
+            const locationContent = document.getElementById('ip-location-content');
+            
+            if (!locationData || !locationData.location) {
+                locationContent.innerHTML = `
+                    <div class="location-item">
+                        <span class="label">IP地址:</span>
+                        <span class="value">${ipAddress}</span>
+                    </div>
+                    <div class="location-item">
+                        <span class="label">位置:</span>
+                        <span class="value">位置信息不可用</span>
+                    </div>
+                `;
+            } else {
+                const location = locationData.location;
+                const flag = getCountryFlag(location.country);
+                
+                locationContent.innerHTML = `
+                    <div class="ip-location-details">
+                        <div class="location-item">
+                            <span class="flag">${flag}</span>
+                            <span class="label">国家/地区:</span>
+                            <span class="value">${location.country || '未知'}</span>
+                        </div>
+                        <div class="location-item">
+                            <span class="label">城市:</span>
+                            <span class="value">${location.city || '未知'}</span>
+                        </div>
+                        <div class="location-item">
+                            <span class="label">地区:</span>
+                            <span class="value">${location.region || '未知'}</span>
+                        </div>
+                        <div class="location-item">
+                            <span class="label">时区:</span>
+                            <span class="value">${location.timezone || '未知'}</span>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            locationInfo.classList.add('show');
+        }
+
+        // 隐藏IP位置信息
+        function hideIpLocationInfo() {
+            const locationInfo = document.getElementById('ip-location-info');
+            locationInfo.classList.remove('show');
+            locationInfo.style.display = 'none';
+        }
+
+        // 获取国家国旗emoji
+        function getCountryFlag(countryName) {
+            const flagMap = {
+                'China': '🇨🇳',
+                'United States': '🇺🇸',
+                'Japan': '🇯🇵',
+                'South Korea': '🇰🇷',
+                'Singapore': '🇸🇬',
+                'Hong Kong': '🇭🇰',
+                'Taiwan': '🇹🇼',
+                'United Kingdom': '🇬🇧',
+                'Germany': '🇩🇪',
+                'France': '🇫🇷',
+                'Canada': '🇨🇦',
+                'Australia': '🇦🇺',
+                'Russia': '🇷🇺',
+                'India': '🇮🇳',
+                'Brazil': '🇧🇷',
+                'Mexico': '🇲🇽',
+                'Italy': '🇮🇹',
+                'Spain': '🇪🇸',
+                'Netherlands': '🇳🇱',
+                'Sweden': '🇸🇪',
+                'Switzerland': '🇨🇭',
+                'Norway': '🇳🇴',
+                'Denmark': '🇩🇰',
+                'Finland': '🇫🇮',
+                'Poland': '🇵🇱',
+                'Austria': '🇦🇹',
+                'Belgium': '🇧🇪',
+                'Ireland': '🇮🇪',
+                'Portugal': '🇵🇹',
+                'Greece': '🇬🇷',
+                'Czech Republic': '🇨🇿',
+                'Hungary': '🇭🇺',
+                'Romania': '🇷🇴',
+                'Bulgaria': '🇧🇬',
+                'Croatia': '🇭🇷',
+                'Slovakia': '🇸🇰',
+                'Slovenia': '🇸🇮',
+                'Estonia': '🇪🇪',
+                'Latvia': '🇱🇻',
+                'Lithuania': '🇱🇹',
+                'Luxembourg': '🇱🇺',
+                'Malta': '🇲🇹',
+                'Cyprus': '🇨🇾',
+                'Iceland': '🇮🇸',
+                'Liechtenstein': '🇱🇮',
+                'Monaco': '🇲🇨',
+                'San Marino': '🇸🇲',
+                'Vatican City': '🇻🇦',
+                'Andorra': '🇦🇩',
+                'Albania': '🇦🇱',
+                'Bosnia and Herzegovina': '🇧🇦',
+                'Montenegro': '🇲🇪',
+                'North Macedonia': '🇲🇰',
+                'Serbia': '🇷🇸',
+                'Kosovo': '🇽🇰',
+                'Moldova': '🇲🇩',
+                'Ukraine': '🇺🇦',
+                'Belarus': '🇧🇾',
+                'Georgia': '🇬🇪',
+                'Armenia': '🇦🇲',
+                'Azerbaijan': '🇦🇿',
+                'Kazakhstan': '🇰🇿',
+                'Uzbekistan': '🇺🇿',
+                'Kyrgyzstan': '🇰🇬',
+                'Tajikistan': '🇹🇯',
+                'Turkmenistan': '🇹🇲',
+                'Mongolia': '🇲🇳',
+                'Vietnam': '🇻🇳',
+                'Thailand': '🇹🇭',
+                'Malaysia': '🇲🇾',
+                'Indonesia': '🇮🇩',
+                'Philippines': '🇵🇭',
+                'Myanmar': '🇲🇲',
+                'Cambodia': '🇰🇭',
+                'Laos': '🇱🇦',
+                'Brunei': '🇧🇳',
+                'East Timor': '🇹🇱',
+                'Papua New Guinea': '🇵🇬',
+                'Fiji': '🇫🇯',
+                'New Zealand': '🇳🇿',
+                'Pakistan': '🇵🇰',
+                'Bangladesh': '🇧🇩',
+                'Sri Lanka': '🇱🇰',
+                'Nepal': '🇳🇵',
+                'Bhutan': '🇧🇹',
+                'Maldives': '🇲🇻',
+                'Afghanistan': '🇦🇫',
+                'Iran': '🇮🇷',
+                'Iraq': '🇮🇶',
+                'Syria': '🇸🇾',
+                'Lebanon': '🇱🇧',
+                'Jordan': '🇯🇴',
+                'Israel': '🇮🇱',
+                'Palestine': '🇵🇸',
+                'Saudi Arabia': '🇸🇦',
+                'Yemen': '🇾🇪',
+                'Oman': '🇴🇲',
+                'United Arab Emirates': '🇦🇪',
+                'Qatar': '🇶🇦',
+                'Bahrain': '🇧🇭',
+                'Kuwait': '🇰🇼',
+                'Egypt': '🇪🇬',
+                'Libya': '🇱🇾',
+                'Tunisia': '🇹🇳',
+                'Algeria': '🇩🇿',
+                'Morocco': '🇲🇦',
+                'Sudan': '🇸🇩',
+                'South Sudan': '🇸🇸',
+                'Ethiopia': '🇪🇹',
+                'Eritrea': '🇪🇷',
+                'Djibouti': '🇩🇯',
+                'Somalia': '🇸🇴',
+                'Kenya': '🇰🇪',
+                'Uganda': '🇺🇬',
+                'Tanzania': '🇹🇿',
+                'Rwanda': '🇷🇼',
+                'Burundi': '🇧🇮',
+                'Democratic Republic of the Congo': '🇨🇩',
+                'Republic of the Congo': '🇨🇬',
+                'Central African Republic': '🇨🇫',
+                'Chad': '🇹🇩',
+                'Cameroon': '🇨🇲',
+                'Nigeria': '🇳🇬',
+                'Niger': '🇳🇪',
+                'Mali': '🇲🇱',
+                'Burkina Faso': '🇧🇫',
+                'Senegal': '🇸🇳',
+                'Gambia': '🇬🇲',
+                'Guinea-Bissau': '🇬🇼',
+                'Guinea': '🇬🇳',
+                'Sierra Leone': '🇸🇱',
+                'Liberia': '🇱🇷',
+                'Ivory Coast': '🇨🇮',
+                'Ghana': '🇬🇭',
+                'Togo': '🇹🇬',
+                'Benin': '🇧🇯',
+                'Equatorial Guinea': '🇬🇶',
+                'Gabon': '🇬🇦',
+                'São Tomé and Príncipe': '🇸🇹',
+                'Angola': '🇦🇴',
+                'Zambia': '🇿🇲',
+                'Zimbabwe': '🇿🇼',
+                'Botswana': '🇧🇼',
+                'Namibia': '🇳🇦',
+                'South Africa': '🇿🇦',
+                'Lesotho': '🇱🇸',
+                'Eswatini': '🇸🇿',
+                'Madagascar': '🇲🇬',
+                'Mauritius': '🇲🇺',
+                'Seychelles': '🇸🇨',
+                'Comoros': '🇰🇲',
+                'Mayotte': '🇾🇹',
+                'Réunion': '🇷🇪',
+                'Argentina': '🇦🇷',
+                'Chile': '🇨🇱',
+                'Peru': '🇵🇪',
+                'Bolivia': '🇧🇴',
+                'Paraguay': '🇵🇾',
+                'Uruguay': '🇺🇾',
+                'Colombia': '🇨🇴',
+                'Venezuela': '🇻🇪',
+                'Ecuador': '🇪🇨',
+                'Guyana': '🇬🇾',
+                'Suriname': '🇸🇷',
+                'French Guiana': '🇬🇫',
+                'Falkland Islands': '🇫🇰',
+                'South Georgia': '🇬🇸',
+                'Antarctica': '🇦🇶',
+                'Greenland': '🇬🇱',
+                'Iceland': '🇮🇸',
+                'Faroe Islands': '🇫🇴',
+                'Svalbard': '🇸🇯',
+                'Jan Mayen': '🇳🇴',
+                'Bouvet Island': '🇧🇻',
+                'Heard Island': '🇭🇲',
+                'McDonald Islands': '🇦🇺',
+                'French Southern Territories': '🇹🇫',
+                'South Sandwich Islands': '🇬🇸',
+                'British Indian Ocean Territory': '🇮🇴',
+                'Christmas Island': '🇨🇽',
+                'Cocos Islands': '🇨🇨',
+                'Norfolk Island': '🇳🇫',
+                'Pitcairn Islands': '🇵🇳',
+                'Tokelau': '🇹🇰',
+                'Niue': '🇳🇺',
+                'Cook Islands': '🇨🇰',
+                'American Samoa': '🇦🇸',
+                'Guam': '🇬🇺',
+                'Northern Mariana Islands': '🇲🇵',
+                'Palau': '🇵🇼',
+                'Marshall Islands': '🇲🇭',
+                'Micronesia': '🇫🇲',
+                'Nauru': '🇳🇷',
+                'Kiribati': '🇰🇮',
+                'Tuvalu': '🇹🇻',
+                'Vanuatu': '🇻🇺',
+                'New Caledonia': '🇳🇨',
+                'Solomon Islands': '🇸🇧',
+                'Samoa': '🇼🇸',
+                'Tonga': '🇹🇴',
+                'Wallis and Futuna': '🇼🇫',
+                'French Polynesia': '🇵🇫',
+                'Easter Island': '🇨🇱',
+                'Galápagos Islands': '🇪🇨',
+                'Cayman Islands': '🇰🇾',
+                'Bermuda': '🇧🇲',
+                'Turks and Caicos Islands': '🇹🇨',
+                'British Virgin Islands': '🇻🇬',
+                'U.S. Virgin Islands': '🇻🇮',
+                'Puerto Rico': '🇵🇷',
+                'Anguilla': '🇦🇮',
+                'Montserrat': '🇲🇸',
+                'Saint Kitts and Nevis': '🇰🇳',
+                'Antigua and Barbuda': '🇦🇬',
+                'Dominica': '🇩🇲',
+                'Saint Lucia': '🇱🇨',
+                'Saint Vincent and the Grenadines': '🇻🇨',
+                'Grenada': '🇬🇩',
+                'Barbados': '🇧🇧',
+                'Trinidad and Tobago': '🇹🇹',
+                'Aruba': '🇦🇼',
+                'Curaçao': '🇨🇼',
+                'Bonaire': '🇧🇶',
+                'Sint Eustatius': '🇧🇶',
+                'Saba': '🇧🇶',
+                'Sint Maarten': '🇸🇽',
+                'Saint Martin': '🇲🇫',
+                'Saint Barthélemy': '🇧🇱',
+                'Guadeloupe': '🇬🇵',
+                'Martinique': '🇲🇶',
+                'Dominican Republic': '🇩🇴',
+                'Haiti': '🇭🇹',
+                'Jamaica': '🇯🇲',
+                'Cuba': '🇨🇺',
+                'Bahamas': '🇧🇸',
+                'Belize': '🇧🇿',
+                'Guatemala': '🇬🇹',
+                'El Salvador': '🇸🇻',
+                'Honduras': '🇭🇳',
+                'Nicaragua': '🇳🇮',
+                'Costa Rica': '🇨🇷',
+                'Panama': '🇵🇦',
+                '本地': '🏠',
+                '本地网络': '🏠'
+            };
+            
+            return flagMap[countryName] || '🌍';
+        }
+
+        // 表单提交处理
+        document.getElementById('whitelist-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '提交中...';
+            
+            try {
+                const formData = {
+                    company_name: document.getElementById('company-name').value.trim(),
+                    token: document.getElementById('token').value.trim(),
+                    ip_address: document.getElementById('ip-address').value.trim()
+                };
+                
+                // 基本验证
+                if (!formData.company_name || !formData.token || !formData.ip_address) {
+                    showAlert('请填写所有必填字段', 'error');
+                    return;
+                }
+                
+                // IP地址格式验证
+                if (!isValidIP(formData.ip_address)) {
+                    showAlert('IP地址格式不正确，请输入有效的IPv4地址', 'error');
+                    return;
+                }
+                
+                // 检查是否为私有IP
+                if (isPrivateIP(formData.ip_address)) {
+                    showAlert('检测到私有IP地址，请确保输入的是您的公网IP地址', 'error');
+                    return;
+                }
+                
+                // 先检查token是否有效
+                console.log('正在验证token...');
+                const tokenCheckResponse = await fetch(`${API_BASE}/public/validate-token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ token: formData.token }),
+                    signal: AbortSignal.timeout(10000) // 10秒超时
+                });
+                
+                if (!tokenCheckResponse.ok) {
+                    const errorText = await tokenCheckResponse.text();
+                    console.error('Token验证响应内容:', errorText);
+                    throw new Error(`Token验证失败: ${tokenCheckResponse.status} ${tokenCheckResponse.statusText}`);
+                }
+                
+                const tokenResult = await tokenCheckResponse.json();
+                console.log('Token验证结果:', tokenResult);
+                
+                if (!tokenResult.valid) {
+                    showAlert(`Token验证失败: ${tokenResult.message}`, 'error');
+                    return;
+                }
+                
+                if (tokenResult.auto_approve) {
+                    // 如果token支持自动审批，直接添加到白名单
+                    console.log('Token支持自动审批，正在自动添加...');
+                    const autoApproveResponse = await fetch(`${API_BASE}/public/auto-approve`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify(formData),
+                        signal: AbortSignal.timeout(15000) // 15秒超时
+                    });
+                    
+                    if (!autoApproveResponse.ok) {
+                        const errorText = await autoApproveResponse.text();
+                        console.error('自动审批响应内容:', errorText);
+                        throw new Error(`自动审批失败: ${autoApproveResponse.status} ${autoApproveResponse.statusText}`);
+                    }
+                    
+                    const autoResult = await autoApproveResponse.json();
+                    console.log('自动审批结果:', autoResult);
+                    
+                    if (autoResult.success) {
+                        showAlert(`
+                            <strong>✅ 白名单添加成功！</strong><br>
+                            IP地址: ${formData.ip_address}<br>
+                            状态: 已自动添加到白名单<br>
+                            申请ID: ${autoResult.request_id}
+                        `, 'success');
+                        
+                        document.getElementById('whitelist-form').reset();
+                        document.getElementById('ip-address').value = formData.ip_address; // 保持IP地址
+                    } else {
+                        showAlert(`自动添加失败: ${autoResult.message}`, 'error');
+                    }
+                } else {
+                    // 普通申请流程
+                    console.log('Token不支持自动审批，提交申请...');
+                    const response = await fetch(`${API_BASE}/public/request`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify(formData),
+                        signal: AbortSignal.timeout(15000) // 15秒超时
+                    });
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('申请提交响应内容:', errorText);
+                        throw new Error(`申请提交失败: ${response.status} ${response.statusText}`);
+                    }
+                    
+                    const result = await response.json();
+                    console.log('申请提交结果:', result);
+                    
+                    if (result.success) {
+                        showAlert(`
+                            <strong>✅ 申请提交成功！</strong><br>
+                            申请ID: ${result.request_id}<br>
+                            状态: 等待审核<br>
+                            请等待管理员审核您的申请
+                        `, 'success');
+                        
+                        document.getElementById('whitelist-form').reset();
+                        document.getElementById('ip-address').value = formData.ip_address; // 保持IP地址
+                        
+                    } else {
+                        showAlert(`申请提交失败: ${result.message}`, 'error');
+                    }
+                }
+                
+            } catch (error) {
+                console.error('申请提交失败:', error);
+                console.error('错误详情:', error.message);
+                
+                let errorMessage = '申请提交失败，请稍后重试';
+                if (error.name === 'TimeoutError') {
+                    errorMessage = '请求超时，请检查网络连接或稍后重试';
+                } else if (error.message.includes('fetch')) {
+                    errorMessage = '网络连接失败，请检查网络连接';
+                } else if (error.message.includes('AbortError')) {
+                    errorMessage = '请求被中断，请稍后重试';
+                } else if (error.message.includes('Token验证失败')) {
+                    errorMessage = error.message;
+                } else if (error.message.includes('申请提交失败')) {
+                    errorMessage = error.message;
+                }
+                
+                showAlert(errorMessage, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '提交申请';
+            }
+        });
+
+
+    </script>
+</body>
+</html>
