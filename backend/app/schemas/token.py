@@ -114,6 +114,7 @@ class TokenStatsResponse(BaseModel):
     today_tokens: int
     total_requests: int
     pending_requests: int
+    total_usage: int
     
     class Config:
         from_attributes = True

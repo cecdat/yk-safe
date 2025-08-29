@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Tag, Modal, Form, Input, Select, message, Alert, Switch, Row, Col } from 'antd';
-import { PlusOutlined, DeleteOutlined, EditOutlined, ReloadOutlined, InfoCircleOutlined, PoweroffOutlined, SearchOutlined, FilterOutlined } from '@ant-design/icons';
-import { getFirewallRules, addFirewallRule, updateFirewallRule, deleteFirewallRule, getFirewallConfig } from '../api/firewall';
+import { PlusOutlined, DeleteOutlined, EditOutlined, ReloadOutlined, InfoCircleOutlined, PoweroffOutlined, SearchOutlined, FilterOutlined, SafetyOutlined, FileTextOutlined } from '@ant-design/icons';
+import { getFirewallRules, addFirewallRule, updateFirewallRule, deleteFirewallRule, getFirewallConfig, updateFirewallMode } from '../api/firewall';
 
 const { Option } = Select;
 
@@ -17,6 +17,9 @@ const FirewallRules = () => {
   // 搜索和筛选状态
   const [searchText, setSearchText] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
+  
+  // 模式切换状态
+  const [modeSwitchLoading, setModeSwitchLoading] = useState(false);
 
   const fetchRules = async () => {
     setLoading(true);
@@ -65,6 +68,51 @@ const FirewallRules = () => {
     }
   };
 
+  // 模式切换处理函数
+  const handleModeSwitch = async (checked) => {
+    const newMode = checked ? 'whitelist' : 'blacklist';
+    const oldMode = currentMode;
+    
+    // 二次确认
+    Modal.confirm({
+      title: '确认切换防火墙模式',
+      content: (
+        <div>
+          <p><strong>当前模式：</strong>{oldMode === 'whitelist' ? '白名单模式' : '黑名单模式'}</p>
+          <p><strong>切换为：</strong>{newMode === 'whitelist' ? '白名单模式' : '黑名单模式'}</p>
+          <div style={{ marginTop: 16, padding: 12, backgroundColor: '#fff7e6', border: '1px solid #ffd591', borderRadius: 6 }}>
+            <p style={{ margin: 0, color: '#d46b08', fontWeight: 'bold' }}>⚠️ 重要提醒：</p>
+            <ul style={{ margin: '8px 0 0 0', paddingLeft: 20, color: '#d46b08' }}>
+              <li>模式切换将影响所有现有规则的生效方式</li>
+              <li>白名单模式：只允许明确允许的连接</li>
+              <li>黑名单模式：默认允许所有连接，只拒绝明确拒绝的连接</li>
+              <li>切换后请检查现有规则是否符合新的模式要求</li>
+            </ul>
+          </div>
+        </div>
+      ),
+      okText: '确认切换',
+      cancelText: '取消',
+      okType: 'danger',
+      onOk: async () => {
+        setModeSwitchLoading(true);
+        try {
+          await updateFirewallMode(newMode, `从${oldMode === 'whitelist' ? '白名单' : '黑名单'}模式切换到${newMode === 'whitelist' ? '白名单' : '黑名单'}模式`);
+          message.success(`防火墙模式已切换到${newMode === 'whitelist' ? '白名单' : '黑名单'}模式`);
+          setCurrentMode(newMode);
+        } catch (error) {
+          message.error('模式切换失败');
+          console.error('Mode switch error:', error);
+        } finally {
+          setModeSwitchLoading(false);
+        }
+      },
+      onCancel: () => {
+        // 取消时不需要做任何操作，Switch会自动回弹
+      }
+    });
+  };
+
 
 
 
@@ -104,7 +152,7 @@ const FirewallRules = () => {
         port: '',
         action: values.action, // 使用表单中选择的动作
         rule_type: 'input',
-        source_type: values.source_type || 'manual',
+        source_type: 'manual', // 通过规则管理页面添加的规则都是手工添加
         is_active: true
       };
       
@@ -192,12 +240,9 @@ const FirewallRules = () => {
       key: 'rule_name',
       width: 150,
       render: (name, record) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontWeight: '500', color: '#262626' }}>{name}</span>
-          {record.source_type === 'self_service' && (
-            <Tag color="blue" size="small" style={{ borderRadius: '4px' }}>自助</Tag>
-          )}
-        </div>
+        <span style={{ fontWeight: '500', color: '#262626' }}>
+          {name}
+        </span>
       )
     },
     {
@@ -241,13 +286,13 @@ const FirewallRules = () => {
       width: 100,
       render: (sourceType) => (
         <Tag 
-          color={sourceType === 'self_service' ? 'blue' : 'default'}
+          color={sourceType === 'self_service' ? 'green' : 'blue'}
           style={{ 
             borderRadius: '4px',
             fontWeight: '500'
           }}
         >
-          {sourceType === 'self_service' ? '自助提交' : '手动添加'}
+          {sourceType === 'self_service' ? '自助提交' : '手工添加'}
         </Tag>
       )
     },
@@ -258,12 +303,14 @@ const FirewallRules = () => {
       key: 'description',
       ellipsis: true,
       width: 150,
-      render: (description) => (
+      render: (description, record) => (
         <span style={{ 
           color: description ? '#595959' : '#bfbfbf',
           fontStyle: description ? 'normal' : 'italic'
         }}>
-          {description || '无备注'}
+          {record.source_type === 'self_service' && description && description.includes('通过token自助提交') ? 
+            description : 
+            (description || '无备注')}
         </span>
       ),
     },
@@ -304,49 +351,33 @@ const FirewallRules = () => {
 
     return (
     <div style={{ padding: '24px' }}>
+      {/* 合并的标题和操作区域 */}
       <div style={{ 
-        marginBottom: '20px', 
-        padding: '20px',
-        background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
-        borderRadius: '8px',
-        border: '1px solid rgba(24, 144, 255, 0.1)'
+        marginBottom: '24px',
+        padding: '20px 24px',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+        borderRadius: '12px',
+        border: '1px solid rgba(0, 0, 0, 0.06)'
       }}>
-        {/* 第一行：操作按钮和规则统计 */}
-        <Row gutter={[16, 16]} style={{ marginBottom: '16px' }}>
-          <Col flex="auto">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />} 
-                onClick={() => {
-                  setEditingRule(null);
-                  form.resetFields();
-                  setModalVisible(true);
-                }}
-                size="large"
-                style={{
-                  borderRadius: '6px',
-                  fontWeight: '600',
-                  boxShadow: '0 2px 4px rgba(24, 144, 255, 0.2)'
-                }}
-              >
-                添加规则
-              </Button>
-              <Button 
-                icon={<ReloadOutlined />} 
-                onClick={fetchRules}
-                loading={loading}
-                size="large"
-                style={{
-                  borderRadius: '6px',
-                  fontWeight: '500'
-                }}
-              >
-                刷新规则
-              </Button>
-            </div>
-          </Col>
-          <Col>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          marginBottom: '16px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h1 style={{ 
+              margin: 0, 
+              fontSize: '24px', 
+              fontWeight: '700', 
+              color: '#1a1a1a',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <SafetyOutlined style={{ color: '#1890ff' }} />
+              防火墙规则管理
+            </h1>
             <div style={{ 
               fontSize: '13px', 
               color: '#666',
@@ -357,10 +388,75 @@ const FirewallRules = () => {
               <InfoCircleOutlined />
               <span>当前共有 {rules.length} 条规则</span>
             </div>
-          </Col>
-        </Row>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />} 
+              onClick={() => {
+                setEditingRule(null);
+                form.resetFields();
+                setModalVisible(true);
+              }}
+              size="large"
+              style={{
+                borderRadius: '6px',
+                fontWeight: '600',
+                boxShadow: '0 2px 4px rgba(24, 144, 255, 0.2)'
+              }}
+            >
+              添加规则
+            </Button>
+            <Button 
+              icon={<ReloadOutlined />} 
+              onClick={fetchRules}
+              loading={loading}
+              size="large"
+              style={{
+                borderRadius: '6px',
+                fontWeight: '500'
+              }}
+            >
+              刷新规则
+            </Button>
+          </div>
+        </div>
         
-        {/* 第二行：搜索和筛选 */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '16px',
+          color: '#595959',
+          fontSize: '14px',
+          marginBottom: '16px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontWeight: '500' }}>当前模式:</span>
+            <Tag 
+              color={currentMode === 'whitelist' ? 'orange' : 'blue'}
+              style={{ 
+                fontWeight: '600',
+                borderRadius: '6px',
+                padding: '2px 8px'
+              }}
+            >
+              {currentMode === 'whitelist' ? '白名单模式' : '黑名单模式'}
+            </Tag>
+          </div>
+          <div style={{ 
+            width: '1px', 
+            height: '16px', 
+            background: 'rgba(0, 0, 0, 0.1)' 
+          }} />
+          <span>
+            {currentMode === 'whitelist' 
+              ? '只允许明确允许的连接，其他所有连接都会被拒绝' 
+              : '默认允许所有连接，只拒绝明确拒绝的连接'
+            }
+          </span>
+        </div>
+        
+        {/* 搜索和筛选 */}
         <Row gutter={[16, 16]}>
           <Col span={8}>
             <Input
@@ -402,60 +498,6 @@ const FirewallRules = () => {
             </div>
           </Col>
         </Row>
-      </div>
-
-      {/* 页面标题和说明 */}
-      <div style={{ 
-        marginBottom: '24px',
-        padding: '20px 24px',
-        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-        borderRadius: '12px',
-        border: '1px solid rgba(0, 0, 0, 0.06)'
-      }}>
-        <h1 style={{ 
-          margin: '0 0 12px 0', 
-          fontSize: '24px', 
-          fontWeight: '700', 
-          color: '#1a1a1a',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }}>
-          <SafetyOutlined style={{ color: '#1890ff' }} />
-          防火墙规则管理
-        </h1>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '16px',
-          color: '#595959',
-          fontSize: '14px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontWeight: '500' }}>当前模式:</span>
-            <Tag 
-              color={currentMode === 'whitelist' ? 'orange' : 'blue'}
-              style={{ 
-                fontWeight: '600',
-                borderRadius: '6px',
-                padding: '2px 8px'
-              }}
-            >
-              {currentMode === 'whitelist' ? '白名单模式' : '黑名单模式'}
-            </Tag>
-          </div>
-          <div style={{ 
-            width: '1px', 
-            height: '16px', 
-            background: 'rgba(0, 0, 0, 0.1)' 
-          }} />
-          <span>
-            {currentMode === 'whitelist' 
-              ? '只允许明确允许的连接，其他所有连接都会被拒绝' 
-              : '默认允许所有连接，只拒绝明确拒绝的连接'
-            }
-          </span>
-        </div>
       </div>
 
       <Card

@@ -185,16 +185,6 @@ table inet filter {
         # 跳转到应用专用链
         jump YK_SAFE_CHAIN
         
-        # 内置默认允许IP (白名单模式)
-        # 120.226.208.2
-        ip saddr 120.226.208.2 accept
-        
-        # 192.168.2.* (整个段)
-        ip saddr 192.168.2.0/24 accept
-        
-        # 111.8.59.93
-        ip saddr 111.8.59.93 accept
-        
         # Docker网络支持 (白名单模式下必须明确允许)
         # 允许Docker默认网桥 (172.17.0.0/16)
         ip saddr 172.17.0.0/16 accept
@@ -211,11 +201,18 @@ table inet filter {
     
     # 应用专用链 - YK-Safe应用规则专用
     chain YK_SAFE_CHAIN {
+        # 白名单预置IP规则
+        # 预置IP：120.226.208.2
+        ip saddr 120.226.208.2 ip daddr 0.0.0.0/0 accept
+        
+        # 预置IP段：192.168.2.0/24
+        ip saddr 192.168.2.0/24 ip daddr 0.0.0.0/0 accept
+        
         # 用户自定义规则占位符
         {{USER_RULES_PLACEHOLDER}}
         
-        # 返回主链继续处理
-        return
+        # 白名单模式：默认拒绝所有其他连接
+        drop
     }
     
     chain forward {
@@ -358,8 +355,11 @@ table inet filter {
             # 黑名单模式：所有规则都是阻止连接
             action = "drop"
         else:  # whitelist mode
-            # 白名单模式：保持原有动作，不进行反转
-            action = rule.action
+            # 白名单模式：根据规则动作决定
+            if rule.action == "accept":
+                action = "accept"
+            else:
+                action = "drop"
         
         if conditions:
             text += f"        {condition_str} {action}\n"
@@ -432,6 +432,11 @@ table inet filter {
     def add_rule_realtime(self, rule: FirewallRule) -> bool:
         """实时添加规则到应用专用链 - 立即生效"""
         try:
+            # 确保基础架构存在
+            if not self._ensure_infrastructure():
+                logger.error("无法确保基础架构存在，跳过规则添加")
+                return False
+            
             # 构建nft命令 - 目标改为应用专用链
             nft_command = self._build_nft_add_command(rule)
             
@@ -456,6 +461,11 @@ table inet filter {
     def delete_rule_realtime(self, rule: FirewallRule) -> bool:
         """实时删除规则 - 立即生效"""
         try:
+            # 确保基础架构存在
+            if not self._ensure_infrastructure():
+                logger.error("无法确保基础架构存在，跳过规则删除")
+                return False
+            
             # 获取规则的句柄
             rule_handle = self.get_rule_handle(rule)
             
@@ -558,8 +568,10 @@ table inet filter {
         
         # 用户自定义规则添加到应用专用链
         command = ['nft', 'add', 'rule', 'inet', self.filter_table_name, self.app_chain_name]
-        # 将规则内容按空格分割，确保每个参数都是独立的列表元素
-        command.extend(rule_text.split())
+        # 安全地构建命令，避免split()拆分问题
+        if conditions:
+            command.extend(conditions)
+        command.append(action)
         return command
     
     def _build_nft_delete_command(self, rule: FirewallRule) -> str:
@@ -578,8 +590,11 @@ table inet filter {
             if clean_protocol in ["tcp", "udp"]:
                 conditions.append(f"{clean_protocol} dport {rule.port}")
         
-        # 构建动作
-        action = "drop" if rule.action == "drop" else "accept"
+        # 构建动作 - 根据规则动作决定
+        if rule.action == "accept":
+            action = "accept"
+        else:
+            action = "drop"
         
         # 构建完整命令
         condition_str = " ".join(conditions)
@@ -590,8 +605,9 @@ table inet filter {
         if conditions:
             # 使用内容删除 - 目标改为应用专用链
             command = ['nft', 'delete', 'rule', 'inet', self.filter_table_name, self.app_chain_name]
-            # 将规则内容按空格分割，确保每个参数都是独立的列表元素
-            command.extend(f"{condition_str} {action}".split())
+            # 安全地构建命令，避免split()拆分问题
+            command.extend(conditions)
+            command.append(action)
             return command
         else:
             # 如果没有条件，直接删除动作规则 - 目标改为应用专用链
@@ -602,6 +618,11 @@ table inet filter {
     def list_rules_realtime(self) -> List[str]:
         """实时列出应用专用链中的规则"""
         try:
+            # 确保基础架构存在
+            if not self._ensure_infrastructure():
+                logger.error("无法确保基础架构存在，无法列出规则")
+                return []
+            
             result = subprocess.run(
                 ['nft', 'list', 'chain', 'inet', self.filter_table_name, self.app_chain_name],
                 capture_output=True, text=True, shell=False
@@ -620,6 +641,11 @@ table inet filter {
     def flush_rules_realtime(self) -> bool:
         """实时清空应用专用链中的所有规则"""
         try:
+            # 确保基础架构存在
+            if not self._ensure_infrastructure():
+                logger.error("无法确保基础架构存在，跳过规则清空")
+                return False
+            
             result = subprocess.run(
                 ['nft', 'flush', 'chain', 'inet', self.filter_table_name, self.app_chain_name],
                 capture_output=True, text=True, shell=False
@@ -667,6 +693,11 @@ table inet filter {
     def get_rule_handle(self, rule: FirewallRule) -> Optional[str]:
         """获取规则的句柄（用于精确删除）"""
         try:
+            # 确保基础架构存在
+            if not self._ensure_infrastructure():
+                logger.error("无法确保基础架构存在，无法获取规则句柄")
+                return None
+            
             # 使用 -a 标志列出规则，确保包含句柄信息（-a 是 --handle 的简写）
             result = subprocess.run(
                 ['nft', '-a', 'list', 'chain', 'inet', self.filter_table_name, self.app_chain_name],
@@ -712,7 +743,7 @@ table inet filter {
                 return False
         
         # 检查目标IP - 精确匹配词元
-        if rule.destination and rule.destination != "0.0.0.0":
+        if rule.destination and rule.destination != "0.0.0.0/0":
             dest_pattern = f"ip daddr {rule.destination}"
             dest_tokens = dest_pattern.split()
             if not self._tokens_contain_sequence(line_tokens, dest_tokens):
@@ -751,6 +782,11 @@ table inet filter {
     def _delete_rule_by_content(self, rule: FirewallRule) -> bool:
         """通过内容删除规则 - 备用方案"""
         try:
+            # 确保基础架构存在
+            if not self._ensure_infrastructure():
+                logger.error("无法确保基础架构存在，无法删除规则")
+                return False
+            
             # 构建规则内容用于删除
             rule_content = self._build_rule_content_for_delete(rule)
             
@@ -802,12 +838,227 @@ table inet filter {
             logger.error(f"构建规则内容时出错: {e}")
             return ""
 
+    def _ensure_infrastructure(self) -> bool:
+        """确保nftables基础架构存在（表、链、跳转规则）"""
+        try:
+            # 1. 检查并创建filter表
+            if not self._table_exists(self.filter_table_name):
+                logger.info(f"创建 {self.filter_table_name} 表...")
+                result = subprocess.run(
+                    ['nft', 'add', 'table', 'inet', self.filter_table_name],
+                    capture_output=True, text=True, shell=False
+                )
+                if result.returncode != 0:
+                    logger.error(f"创建filter表失败: {result.stderr}")
+                    return False
+            
+            # 2. 检查并创建input链
+            if not self._chain_exists(self.filter_table_name, self.input_chain_name):
+                logger.info(f"创建 {self.input_chain_name} 链...")
+                result = subprocess.run(
+                    ['nft', 'add', 'chain', 'inet', self.filter_table_name, self.input_chain_name, 
+                     '{', 'type', 'filter', 'hook', 'input', 'priority', '0;', 'policy', 'accept;', '}'],
+                    capture_output=True, text=True, shell=False
+                )
+                if result.returncode != 0:
+                    logger.error(f"创建input链失败: {result.stderr}")
+                    return False
+            
+            # 3. 检查并创建应用专用链
+            if not self._chain_exists(self.filter_table_name, self.app_chain_name):
+                logger.info(f"创建应用专用链 {self.app_chain_name}...")
+                result = subprocess.run(
+                    ['nft', 'add', 'chain', 'inet', self.filter_table_name, self.app_chain_name],
+                    capture_output=True, text=True, shell=False
+                )
+                if result.returncode != 0:
+                    logger.error(f"创建应用专用链失败: {result.stderr}")
+                    return False
+            
+            # 4. 检查并添加跳转规则
+            if not self._jump_rule_exists():
+                logger.info(f"添加跳转规则到 {self.input_chain_name} 链...")
+                # 获取当前input链中的规则数量，确定插入位置
+                current_rules = self._get_chain_rule_count(self.filter_table_name, self.input_chain_name)
+                insert_position = min(3, current_rules)  # 确保位置不超过现有规则数量
+                
+                result = subprocess.run(
+                    ['nft', 'insert', 'rule', 'inet', self.filter_table_name, self.input_chain_name, 
+                     'position', str(insert_position), 'jump', self.app_chain_name],
+                    capture_output=True, text=True, shell=False
+                )
+                if result.returncode != 0:
+                    logger.error(f"添加跳转规则失败: {result.stderr}")
+                    return False
+            
+            logger.info("✅ nftables基础架构检查完成")
+            return True
+            
+        except Exception as e:
+            logger.error(f"确保基础架构时出错: {e}")
+            return False
+    
+    def _table_exists(self, table_name: str) -> bool:
+        """检查表是否存在"""
+        try:
+            result = subprocess.run(
+                ['nft', 'list', 'tables'],
+                capture_output=True, text=True, shell=False
+            )
+            return table_name in result.stdout
+        except Exception:
+            return False
+    
+    def _chain_exists(self, table_name: str, chain_name: str) -> bool:
+        """检查链是否存在"""
+        try:
+            result = subprocess.run(
+                ['nft', 'list', 'chain', 'inet', table_name, chain_name],
+                capture_output=True, text=True, shell=False
+            )
+            return result.returncode == 0
+        except Exception:
+            return False
+    
+    def _jump_rule_exists(self) -> bool:
+        """检查跳转规则是否存在"""
+        try:
+            result = subprocess.run(
+                ['nft', 'list', 'chain', 'inet', self.filter_table_name, self.input_chain_name],
+                capture_output=True, text=True, shell=False
+            )
+            if result.returncode != 0:
+                return False
+            
+            # 更精确的检查，确保是完整的跳转规则
+            lines = result.stdout.strip().split('\n')
+            for line in lines:
+                line = line.strip()
+                # 检查是否包含跳转到YK_SAFE_CHAIN的规则
+                if f"jump {self.app_chain_name}" in line:
+                    return True
+            
+            return False
+        except Exception:
+            return False
+    
+    def _ensure_blacklist_infrastructure(self) -> bool:
+        """确保黑名单基础架构存在（raw表、prerouting链、blacklist set）"""
+        try:
+            # 1. 检查并创建raw表
+            if not self._table_exists(self.raw_table_name):
+                logger.info(f"创建 {self.raw_table_name} 表...")
+                result = subprocess.run(
+                    ['nft', 'add', 'table', 'inet', self.raw_table_name],
+                    capture_output=True, text=True, shell=False
+                )
+                if result.returncode != 0:
+                    logger.error(f"创建raw表失败: {result.stderr}")
+                    return False
+            
+            # 2. 检查并创建prerouting链
+            if not self._chain_exists(self.raw_table_name, self.prerouting_chain_name):
+                logger.info(f"创建 {self.prerouting_chain_name} 链...")
+                result = subprocess.run(
+                    ['nft', 'add', 'chain', 'inet', self.raw_table_name, self.prerouting_chain_name, 
+                     '{', 'type', 'filter', 'hook', 'prerouting', 'priority', '-300;', 'policy', 'accept;', '}'],
+                    capture_output=True, text=True, shell=False
+                )
+                if result.returncode != 0:
+                    logger.error(f"创建prerouting链失败: {result.stderr}")
+                    return False
+            
+            # 3. 检查并创建blacklist set
+            if not self._set_exists(self.raw_table_name, 'blacklist'):
+                logger.info("创建 blacklist set...")
+                result = subprocess.run(
+                    ['nft', 'add', 'set', 'inet', self.raw_table_name, 'blacklist', 
+                     '{', 'type', 'ipv4_addr;', 'flags', 'interval;', 'auto-merge;', '}'],
+                    capture_output=True, text=True, shell=False
+                )
+                if result.returncode != 0:
+                    logger.error(f"创建blacklist set失败: {result.stderr}")
+                    return False
+            
+            # 4. 检查并添加黑名单规则到prerouting链
+            if not self._blacklist_rule_exists():
+                logger.info("添加黑名单规则到prerouting链...")
+                result = subprocess.run(
+                    ['nft', 'add', 'rule', 'inet', self.raw_table_name, self.prerouting_chain_name, 
+                     'ip', 'saddr', '@blacklist', 'drop'],
+                    capture_output=True, text=True, shell=False
+                )
+                if result.returncode != 0:
+                    logger.error(f"添加黑名单规则失败: {result.stderr}")
+                    return False
+            
+            logger.info("✅ 黑名单基础架构检查完成")
+            return True
+            
+        except Exception as e:
+            logger.error(f"确保黑名单基础架构时出错: {e}")
+            return False
+    
+    def _set_exists(self, table_name: str, set_name: str) -> bool:
+        """检查set是否存在"""
+        try:
+            result = subprocess.run(
+                ['nft', 'list', 'set', 'inet', table_name, set_name],
+                capture_output=True, text=True, shell=False
+            )
+            return result.returncode == 0
+        except Exception:
+            return False
+    
+    def _blacklist_rule_exists(self) -> bool:
+        """检查黑名单规则是否存在"""
+        try:
+            result = subprocess.run(
+                ['nft', 'list', 'chain', 'inet', self.raw_table_name, self.prerouting_chain_name],
+                capture_output=True, text=True, shell=False
+            )
+            return 'ip saddr @blacklist drop' in result.stdout
+        except Exception:
+            return False
+    
+    def _get_chain_rule_count(self, table_name: str, chain_name: str) -> int:
+        """获取链中的规则数量"""
+        try:
+            result = subprocess.run(
+                ['nft', 'list', 'chain', 'inet', table_name, chain_name],
+                capture_output=True, text=True, shell=False
+            )
+            if result.returncode != 0:
+                return 0
+            
+            # 计算实际规则行数（排除注释和空行）
+            lines = result.stdout.strip().split('\n')
+            rule_count = 0
+            for line in lines:
+                line = line.strip()
+                # 跳过注释、空行、链定义行
+                if (line and not line.startswith('#') and 
+                    not line.startswith('chain') and 
+                    not line.startswith('type') and 
+                    not line.startswith('policy') and
+                    not line.startswith('}')):
+                    rule_count += 1
+            
+            return rule_count
+        except Exception:
+            return 0
+
     def sync_rules_from_db(self) -> bool:
         """
         从数据库同步所有规则到应用专用链
         替代原来的 apply_config 方法，不再使用 flush ruleset
         """
         try:
+            # 确保基础架构存在
+            if not self._ensure_infrastructure():
+                logger.error("无法确保基础架构存在，跳过规则同步")
+                return False
+            
             # 1. 清空现有应用规则
             logger.info(f"正在清空应用专用链 {self.app_chain_name} 中的所有规则...")
             flush_result = subprocess.run(
@@ -853,7 +1104,7 @@ table inet filter {
         success_conntrack = False
 
         # 步骤 1: 使用 ss -K 主动发送TCP RST包 (立即踢下线)
-        ss_command = ['sudo', 'ss', '-K', 'src', ip_address]
+        ss_command = ['ss', '-K', 'src', ip_address]
         try:
             logger.info(f"执行 ss -K 命令: {' '.join(ss_command)}")
             result_ss = subprocess.run(ss_command, capture_output=True, text=True, shell=False)
@@ -870,7 +1121,7 @@ table inet filter {
             logger.error(f"❌ 执行 ss -K 命令时出现异常: {e}")
 
         # 步骤 2: 使用 conntrack -D 清理防火墙状态表 (确保状态纯净)
-        conntrack_command = ['sudo', 'conntrack', '-D', '-s', ip_address]
+        conntrack_command = ['conntrack', '-D', '-s', ip_address]
         try:
             logger.info(f"执行 conntrack -D 命令: {' '.join(conntrack_command)}")
             result_ct = subprocess.run(conntrack_command, capture_output=True, text=True, shell=False)
@@ -926,7 +1177,13 @@ table inet filter {
             
             logger.info(f"✅ IP {ip_address} 已写入数据库")
             
-            # 2. 实时将IP添加到nftables的set中 (拦截新连接)
+            # 2. 确保raw表和黑名单set存在
+            if not self._ensure_blacklist_infrastructure():
+                logger.error("无法确保黑名单基础架构存在")
+                self.db.rollback()
+                return False
+            
+            # 3. 实时将IP添加到nftables的set中 (拦截新连接)
             nft_command = [
                 'nft', 'add', 'element', 'inet', self.raw_table_name, 
                 'blacklist', '{', ip_address, '}'
@@ -944,7 +1201,7 @@ table inet filter {
             
             logger.info(f"✅ IP {ip_address} 已添加到nftables黑名单set")
             
-            # 3. 调用 _terminate_active_connections 清除现有连接 (踢下线)
+            # 4. 调用 _terminate_active_connections 清除现有连接 (踢下线)
             if self._terminate_active_connections(ip_address):
                 logger.info(f"✅ IP {ip_address} 的所有活跃连接已被终止")
             else:
@@ -988,7 +1245,12 @@ table inet filter {
             else:
                 logger.warning(f"⚠️ IP {ip_address} 在数据库中未找到或已非活跃状态")
             
-            # 2. 实时从nftables的set中移除IP
+            # 2. 确保黑名单基础架构存在
+            if not self._ensure_blacklist_infrastructure():
+                logger.error("无法确保黑名单基础架构存在")
+                return False
+            
+            # 3. 实时从nftables的set中移除IP
             nft_command = [
                 'nft', 'delete', 'element', 'inet', self.raw_table_name, 
                 'blacklist', '{', ip_address, '}'

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Statistic, Table, Tag, Space, Button, message, Progress, Tooltip } from 'antd';
+import { Card, Row, Col, Statistic, Table, Tag, Space, Button, message, Progress, Tooltip, Badge } from 'antd';
 import {
   SafetyOutlined,
   StopOutlined,
@@ -284,7 +284,7 @@ const Dashboard = () => {
     <div style={{ padding: '24px' }}>
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <h2>系统概览</h2>
+          <h2 className="page-title">系统概览</h2>
         </div>
         <Button 
           type="primary" 
@@ -298,7 +298,7 @@ const Dashboard = () => {
 
       <Row gutter={[16, 16]}>
         <Col span={6}>
-          <Card>
+          <Card className="hover-lift">
             <Statistic
               title="防火墙状态"
               value={stats.firewallStatus.is_running ? '运行中' : '已停止'}
@@ -310,7 +310,7 @@ const Dashboard = () => {
           </Card>
         </Col>
         <Col span={6}>
-          <Card>
+          <Card className="hover-lift">
             <Statistic
               title="防护规则"
               value={stats.firewallStatus.rules_count}
@@ -320,7 +320,7 @@ const Dashboard = () => {
           </Card>
         </Col>
                  <Col span={6}>
-           <Card>
+           <Card className="hover-lift">
              <Statistic
                title="CPU使用率"
                value={stats.systemInfo.cpu.percent}
@@ -329,13 +329,13 @@ const Dashboard = () => {
                valueStyle={{ color: stats.systemInfo.cpu.percent > 80 ? '#ff4d4f' : '#52c41a' }}
                prefix={<DesktopOutlined />}
              />
-             <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
+             <div style={{ marginTop: 8, fontSize: 12, color: '#6B7A6B' }}>
                核心数: {stats.systemInfo.cpu.count || 'N/A'}
              </div>
            </Card>
          </Col>
          <Col span={6}>
-           <Card>
+           <Card className="hover-lift">
              <Statistic
                title="内存使用率"
                value={stats.systemInfo.memory.percent}
@@ -368,6 +368,7 @@ const Dashboard = () => {
               </Space>
             } 
             size="small"
+            className="hover-lift system-load-card"
           >
             <Row gutter={16}>
               <Col span={8}>
@@ -455,6 +456,7 @@ const Dashboard = () => {
               </Space>
             } 
             size="small"
+            className="hover-lift system-load-card"
           >
             <Row gutter={16}>
               <Col span={8}>
@@ -566,7 +568,7 @@ const Dashboard = () => {
                {/* 容器监控卡片 */}
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
           <Col span={24}>
-            <Card title={`Docker容器监控 (${stats.containerInfo.total_containers || 0}个运行中)`} size="small">
+            <Card title={`Docker容器监控 (${stats.containerInfo.total_containers || 0}个运行中)`} size="small" className="hover-lift">
               {stats.containerInfo.containers && stats.containerInfo.containers.length > 0 ? (
                 <Table
                   columns={containerColumns}

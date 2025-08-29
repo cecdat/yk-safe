@@ -682,94 +682,16 @@ if command -v systemctl >/dev/null 2>&1; then
     fi
 fi
 
-# 根据部署模式选择防火墙配置
-if [ "$DOCKER_MODE" = "safe" ]; then
-    echo "🔒 使用安全模式配置防火墙..."
-    
-    # 创建安全的nftables配置
-    cat > /etc/nftables.conf << 'EOF'
+# 创建预置配置文件目录
+echo "📁 创建预置配置文件..."
+mkdir -p /etc/nftables-presets
+
+# 创建黑名单模式预置配置文件
+echo "📝 创建黑名单模式预置配置文件..."
+cat > /etc/nftables-presets/blacklist.conf << 'EOF'
 #!/usr/sbin/nft -f
 
-# 安全模式：不清空现有规则，只添加必要的配置
-# 如果表不存在，则创建
-table inet filter {
-    # 如果应用专用链不存在，则创建
-    chain YK_SAFE_CHAIN {
-        # 返回主链继续处理
-        return
-    }
-}
-
-# 如果raw表不存在，则创建
-table inet raw {
-    # 黑名单IP集合（初始为空）
-    set blacklist {
-        type ipv4_addr
-        flags interval
-        auto-merge
-    }
-    
-    # 定义 prerouting 链 - 优先级 -300，确保最先执行
-    chain prerouting {
-        type filter hook prerouting priority -300; policy accept;
-        
-        # 黑名单规则 - 最高优先级，在 Docker 等网络组件之前执行
-        ip saddr @blacklist drop
-        
-        # 允许本地回环
-        iif lo accept
-        
-        # 允许已建立的连接
-        ct state established,related accept
-    }
-}
-EOF
-
-    # 测试配置语法
-    echo "🧪 测试配置语法..."
-    if nft -c -f /etc/nftables.conf; then
-        echo "✅ 配置语法正确"
-    else
-        echo "❌ 配置语法错误"
-        exit 1
-    fi
-
-    # 安全应用配置
-    echo "🔒 安全应用配置..."
-    echo "⚠️  注意：这将添加新的规则，但不会清除现有规则"
-
-    # 应用配置
-    nft -f /etc/nftables.conf
-
-    # 检查应用专用链是否成功创建
-    if nft list chain inet filter YK_SAFE_CHAIN >/dev/null 2>&1; then
-        echo "✅ 应用专用链创建成功"
-    else
-        echo "❌ 应用专用链创建失败"
-        exit 1
-    fi
-
-    # 检查input链中是否有跳转规则
-    if nft list chain inet filter input | grep -q "jump YK_SAFE_CHAIN"; then
-        echo "✅ 跳转规则已存在"
-    else
-        echo "📝 添加跳转规则到input链..."
-        nft insert rule inet filter input position 3 jump YK_SAFE_CHAIN
-        echo "✅ 跳转规则添加成功"
-    fi
-
-    echo "✅ 安全nftables配置完成"
-    
-else
-    echo "🔓 使用标准模式配置防火墙..."
-    
-    # 创建基本防火墙规则 - 使用新的应用专用链架构
-    cat > /etc/nftables.conf << EOF
-#!/usr/sbin/nft -f
-
-# 注意：在正式部署环境中，我们使用 flush ruleset 来创建基础架构
-# 但这会清除所有现有规则，包括Docker创建的规则
-# 因此，我们立即重新添加Docker支持规则
+# 安全模式：创建完整的nftables配置，包含所有必要的链和规则
 flush ruleset
 
 # 定义 raw 表 - 用于黑名单规则，确保最高优先级
@@ -798,6 +720,7 @@ table inet raw {
 
 # 定义 filter 表 - 用于应用层规则
 table inet filter {
+    # 定义链
     chain input {
         type filter hook input priority 0; policy accept;
         
@@ -823,15 +746,33 @@ table inet filter {
         # 允许Docker IPv6网络
         ip6 saddr fd00::/8 accept
         
-        # 黑名单模式：允许所有其他连接通过
-        # 只有黑名单IP会被阻止（在raw表的prerouting链中处理）
+        # 允许SSH (端口22)
+        tcp dport 22 accept
+        
+        # 允许HTTP (端口80)
+        tcp dport 80 accept
+        
+        # 允许HTTPS (端口443)
+        tcp dport 443 accept
+        
+        # 允许前端端口 (5023)
+        tcp dport 5023 accept
+
+        # 允许前端端口 (5024)
+        tcp dport 5024 accept
+
+        # 允许后端端口 (8000)
+        tcp dport 8000 accept
+        
+        # 记录被拒绝的连接
+        log prefix "nftables denied: " group 0
+        
+        # 默认拒绝其他连接
+        drop
     }
     
     # 应用专用链 - YK-Safe应用规则专用
     chain YK_SAFE_CHAIN {
-        # 白名单模式检查（如果启用）
-        # ip saddr != @whitelist drop
-        
         # 返回主链继续处理
         return
     }
@@ -876,22 +817,184 @@ table inet filter {
 }
 EOF
 
-    # 测试防火墙配置语法
-    echo "🧪 测试防火墙配置语法..."
-    if command -v nft >/dev/null 2>&1; then
-        if nft -c -f /etc/nftables.conf; then
-            echo "✅ 防火墙配置语法测试通过"
-            
-            # 应用防火墙配置
-            nft -f /etc/nftables.conf
-            echo "✅ 防火墙规则配置完成"
-        else
-            echo "❌ 防火墙配置语法测试失败"
-            exit 1
-        fi
+# 创建白名单模式预置配置文件
+echo "📝 创建白名单模式预置配置文件..."
+cat > /etc/nftables-presets/whitelist.conf << 'EOF'
+#!/usr/sbin/nft -f
+
+# 白名单模式：默认拒绝所有连接，只允许明确允许的IP
+flush ruleset
+
+# 定义 filter 表 - 白名单模式
+table inet filter {
+    # 定义链
+    chain input {
+        type filter hook input priority 0; policy drop;
+        
+        # 允许本地回环
+        iif lo accept
+        
+        # 允许已建立的连接
+        ct state established,related accept
+        
+        # 跳转到应用专用链
+        jump YK_SAFE_CHAIN
+        
+        # Docker网络支持 (白名单模式下必须明确允许)
+        # 允许Docker默认网桥 (172.17.0.0/16)
+        ip saddr 172.17.0.0/16 accept
+        
+        # 允许Docker自定义网络 (172.18.0.0/15, 172.20.0.0/14, 172.24.0.0/13, 172.32.0.0/11)
+        ip saddr 172.18.0.0/15 accept
+        ip saddr 172.20.0.0/14 accept
+        ip saddr 172.24.0.0/13 accept
+        ip saddr 172.32.0.0/11 accept
+        
+        # 允许Docker IPv6网络
+        ip6 saddr fd00::/8 accept
+        
+        # 允许SSH (端口22)
+        tcp dport 22 accept
+        
+        # 允许HTTP (端口80)
+        tcp dport 80 accept
+        
+        # 允许HTTPS (端口443)
+        tcp dport 443 accept
+        
+        # 允许前端端口 (5023)
+        tcp dport 5023 accept
+
+        # 允许前端端口 (5024)
+        tcp dport 5024 accept
+
+        # 允许后端端口 (8000)
+        tcp dport 8000 accept
+    }
+    
+    # 应用专用链 - YK-Safe应用规则专用
+    chain YK_SAFE_CHAIN {
+        # 白名单预置IP规则
+        # 预置IP：120.226.208.2
+        ip saddr 120.226.208.2 ip daddr 0.0.0.0/0 accept
+        
+        # 预置IP段：192.168.2.0/24
+        ip saddr 192.168.2.0/24 ip daddr 0.0.0.0/0 accept
+        
+        # 白名单模式：默认拒绝所有其他连接
+        drop
+    }
+    
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+        
+        # 允许已建立的连接
+        ct state established,related accept
+        
+        # Docker网络转发支持 (白名单模式下必须明确允许)
+        # 允许Docker默认网桥
+        ip saddr 172.17.0.0/16 accept
+        ip daddr 172.17.0.0/16 accept
+        
+        # 允许Docker自定义网络
+        ip saddr 172.18.0.0/15 accept
+        ip daddr 172.18.0.0/15 accept
+        ip saddr 172.20.0.0/14 accept
+        ip daddr 172.20.0.0/14 accept
+        ip saddr 172.24.0.0/13 accept
+        ip daddr 172.24.0.0/13 accept
+        ip saddr 172.32.0.0/11 accept
+        ip daddr 172.32.0.0/11 accept
+        
+        # 允许Docker IPv6网络
+        ip6 saddr fd00::/8 accept
+        ip6 daddr fd00::/8 accept
+    }
+    
+    chain output {
+        type filter hook output priority 0; policy accept;
+        
+        # Docker网络输出支持
+        ip daddr 172.17.0.0/16 accept
+        ip daddr 172.18.0.0/15 accept
+        ip daddr 172.20.0.0/14 accept
+        ip daddr 172.24.0.0/13 accept
+        ip daddr 172.32.0.0/11 accept
+        ip6 daddr fd00::/8 accept
+    }
+}
+EOF
+
+# 测试预置配置文件语法
+echo "🧪 测试预置配置文件语法..."
+if nft -c -f /etc/nftables-presets/blacklist.conf; then
+    echo "✅ 黑名单模式配置语法正确"
+else
+    echo "❌ 黑名单模式配置语法错误"
+    exit 1
+fi
+
+if nft -c -f /etc/nftables-presets/whitelist.conf; then
+    echo "✅ 白名单模式配置语法正确"
+else
+    echo "❌ 白名单模式配置语法错误"
+    exit 1
+fi
+
+# 根据部署模式选择防火墙配置
+if [ "$DOCKER_MODE" = "safe" ]; then
+    echo "🔒 使用安全模式配置防火墙..."
+    
+    # 使用黑名单模式预置配置（默认）
+    cp /etc/nftables-presets/blacklist.conf /etc/nftables.conf
+    
+    # 应用配置
+    echo "🔒 应用nftables配置..."
+    nft -f /etc/nftables.conf
+
+    # 验证配置
+    if nft list chain inet filter YK_SAFE_CHAIN >/dev/null 2>&1; then
+        echo "✅ 应用专用链创建成功"
     else
-        echo "⚠️  nft命令不可用，跳过防火墙配置"
+        echo "❌ 应用专用链创建失败"
+        exit 1
     fi
+
+    if nft list chain inet filter input | grep -q "jump YK_SAFE_CHAIN"; then
+        echo "✅ 跳转规则配置成功"
+    else
+        echo "❌ 跳转规则配置失败"
+        exit 1
+    fi
+
+    echo "✅ 安全nftables配置完成"
+    
+else
+    echo "🔓 使用标准模式配置防火墙..."
+    
+    # 使用黑名单模式预置配置（默认）
+    cp /etc/nftables-presets/blacklist.conf /etc/nftables.conf
+    
+    # 应用配置
+    echo "🔒 应用nftables配置..."
+    nft -f /etc/nftables.conf
+
+    # 验证配置
+    if nft list chain inet filter YK_SAFE_CHAIN >/dev/null 2>&1; then
+        echo "✅ 应用专用链创建成功"
+    else
+        echo "❌ 应用专用链创建失败"
+        exit 1
+    fi
+
+    if nft list chain inet filter input | grep -q "jump YK_SAFE_CHAIN"; then
+        echo "✅ 跳转规则配置成功"
+    else
+        echo "❌ 跳转规则配置失败"
+        exit 1
+    fi
+
+    echo "✅ 标准nftables配置完成"
 fi
 
 # 启动服务

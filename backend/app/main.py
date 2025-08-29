@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api import firewall, blacklist, monitor, logs, auth, whitelist, tokens, token_audit
+from app.api import firewall, blacklist, monitor, logs, auth, whitelist, tokens, token_audit, network, settings as settings_api
 from app.core.config import settings
 from app.db.database import engine
 from app.db import models
@@ -34,6 +34,8 @@ app.include_router(logs.router, prefix="/api/logs", tags=["日志"])
 app.include_router(whitelist.router, prefix="/api/whitelist", tags=["白名单"])
 app.include_router(tokens.router, prefix="/api/tokens", tags=["Token管理"])
 app.include_router(token_audit.router, prefix="/api/token-audit", tags=["Token审计"])
+app.include_router(network.router, prefix="/api/network", tags=["网络工具"])
+app.include_router(settings_api.router, prefix="/api/settings", tags=["系统设置"])
 
 @app.get("/")
 async def root():

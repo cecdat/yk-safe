@@ -229,16 +229,19 @@ def approve_whitelist_request(
     if request_data.status == "approved":
         whitelist_request.approved_at = get_utc_now()
         
+        # 获取token信息
+        token = db.query(WhitelistToken).filter(WhitelistToken.id == whitelist_request.token_id).first()
+        
         # 创建防火墙规则
         firewall_rule = FirewallRule(
-            rule_name=f"白名单-{whitelist_request.company_name}-{whitelist_request.ip_address}",
+            rule_name=whitelist_request.company_name,  # 只使用公司名，不包含IP
             protocol="tcp",
             source=whitelist_request.ip_address,
             destination="0.0.0.0/0",
             port="",
             action="accept",
             rule_type="input",
-            description=f"自动生成的白名单规则 - {whitelist_request.company_name}",
+            description=f"通过token自助提交 ({token.token[:8]}...)",  # 包含token信息
             source_type="self_service",
             is_active=True
         )

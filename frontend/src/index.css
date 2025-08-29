@@ -1,3 +1,44 @@
+/* 专业深色主题变量 */
+:root {
+  /* 主色调 - 深蓝色 */
+  --primary-color: #1890ff;
+  --primary-hover: #40a9ff;
+  --primary-active: #096dd9;
+  
+  /* 辅助色 */
+  --secondary-color: #722ed1;
+  --secondary-hover: #9254de;
+  
+  /* 背景色 - 深色主题 */
+  --bg-color: #f0f2f5;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  
+  /* 文字颜色 */
+  --text-primary: #262626;
+  --text-secondary: #595959;
+  --text-light: #8c8c8c;
+  
+  /* 边框颜色 */
+  --border-color: #d9d9d9;
+  --border-light: #f0f0f0;
+  
+  /* 状态颜色 */
+  --success-color: #52c41a;
+  --warning-color: #faad14;
+  --error-color: #ff4d4f;
+  --info-color: #1890ff;
+  
+  /* 阴影 */
+  --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.15);
+  --shadow-heavy: 0 8px 24px rgba(0, 0, 0, 0.15);
+  
+  /* 渐变背景 */
+  --gradient-primary: linear-gradient(135deg, #1890ff 0%, #722ed1 100%);
+  --gradient-secondary: linear-gradient(135deg, #f0f2f5 0%, #ffffff 100%);
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -5,6 +46,8 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
 }
 
 code {
@@ -14,4 +57,422 @@ code {
 
 * {
   box-sizing: border-box;
+}
+
+/* 全局样式 */
+.ant-layout {
+  background: var(--bg-color) !important;
+}
+
+.ant-layout-header {
+  background: var(--gradient-primary) !important;
+  box-shadow: var(--shadow-light);
+}
+
+.ant-layout-sider {
+  background: var(--bg-card) !important;
+  border-right: 1px solid var(--border-color);
+  box-shadow: var(--shadow-light);
+  position: fixed !important;
+  height: 100vh !important;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+}
+
+.ant-layout-content {
+  margin-left: 200px !important;
+  min-height: 100vh;
+}
+
+.ant-menu {
+  background: transparent !important;
+}
+
+.ant-menu-item {
+  color: var(--text-secondary) !important;
+  border-radius: 6px;
+  margin: 4px 8px;
+}
+
+.ant-menu-item:hover {
+  background-color: var(--bg-secondary) !important;
+  color: var(--primary-color) !important;
+}
+
+.ant-menu-item-selected {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+}
+
+.ant-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  box-shadow: var(--shadow-light) !important;
+}
+
+.ant-card:hover {
+  box-shadow: var(--shadow-medium) !important;
+}
+
+.ant-btn-primary {
+  background: var(--primary-color) !important;
+  border: none !important;
+  border-radius: 6px !important;
+  box-shadow: var(--shadow-light) !important;
+}
+
+.ant-btn-primary:hover {
+  background: var(--primary-hover) !important;
+  box-shadow: var(--shadow-medium) !important;
+}
+
+.ant-btn-default {
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-secondary) !important;
+  border-radius: 6px !important;
+}
+
+.ant-btn-default:hover {
+  border-color: var(--primary-color) !important;
+  color: var(--primary-color) !important;
+}
+
+.ant-table {
+  background: var(--bg-card) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.ant-table-thead > tr > th {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--border-light) !important;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: var(--bg-secondary) !important;
+}
+
+.ant-tabs-tab {
+  color: var(--text-secondary) !important;
+}
+
+.ant-tabs-tab-active {
+  color: var(--primary-color) !important;
+}
+
+.ant-tabs-ink-bar {
+  background: var(--primary-color) !important;
+}
+
+.ant-form-item-label > label {
+  color: var(--text-primary) !important;
+}
+
+.ant-input, .ant-input-password {
+  border: 1px solid var(--border-color) !important;
+  border-radius: 6px !important;
+  background: var(--bg-card) !important;
+}
+
+.ant-input:focus, .ant-input-password:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2) !important;
+}
+
+.ant-select-selector {
+  border: 1px solid var(--border-color) !important;
+  border-radius: 6px !important;
+  background: var(--bg-card) !important;
+}
+
+.ant-select-focused .ant-select-selector {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2) !important;
+}
+
+.ant-tag {
+  border-radius: 4px !important;
+  border: none !important;
+}
+
+.ant-tag-green {
+  background: rgba(82, 196, 26, 0.1) !important;
+  color: var(--success-color) !important;
+}
+
+.ant-tag-red {
+  background: rgba(255, 77, 79, 0.1) !important;
+  color: var(--error-color) !important;
+}
+
+.ant-tag-orange {
+  background: rgba(250, 173, 20, 0.1) !important;
+  color: var(--warning-color) !important;
+}
+
+.ant-tag-blue {
+  background: rgba(24, 144, 255, 0.1) !important;
+  color: var(--info-color) !important;
+}
+
+.ant-progress-bg {
+  background: var(--primary-color) !important;
+}
+
+.ant-statistic-title {
+  color: var(--text-secondary) !important;
+}
+
+.ant-statistic-content {
+  color: var(--text-primary) !important;
+}
+
+.ant-alert {
+  border-radius: 6px !important;
+  border: none !important;
+}
+
+.ant-alert-success {
+  background: rgba(82, 196, 26, 0.1) !important;
+  color: var(--success-color) !important;
+}
+
+.ant-alert-warning {
+  background: rgba(250, 173, 20, 0.1) !important;
+  color: var(--warning-color) !important;
+}
+
+.ant-alert-error {
+  background: rgba(255, 77, 79, 0.1) !important;
+  color: var(--error-color) !important;
+}
+
+.ant-alert-info {
+  background: rgba(24, 144, 255, 0.1) !important;
+  color: var(--info-color) !important;
+}
+
+.ant-modal-content {
+  border-radius: 8px !important;
+  background: var(--bg-card) !important;
+}
+
+.ant-modal-header {
+  background: var(--bg-secondary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  border-radius: 8px 8px 0 0 !important;
+}
+
+.ant-modal-title {
+  color: var(--text-primary) !important;
+}
+
+.ant-dropdown-menu {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 6px !important;
+  box-shadow: var(--shadow-medium) !important;
+}
+
+.ant-dropdown-menu-item {
+  color: var(--text-secondary) !important;
+}
+
+.ant-dropdown-menu-item:hover {
+  background: var(--bg-secondary) !important;
+  color: var(--primary-color) !important;
+}
+
+/* 开关样式 */
+.ant-switch {
+  background-color: var(--border-color) !important;
+}
+
+.ant-switch-checked {
+  background-color: var(--primary-color) !important;
+}
+
+.ant-switch-handle {
+  background-color: white !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 进度条样式 */
+.ant-progress-line {
+  border-radius: 4px !important;
+}
+
+.ant-progress-bg {
+  border-radius: 4px !important;
+}
+
+/* 徽章样式 */
+.ant-badge-count {
+  background: var(--primary-color) !important;
+  box-shadow: 0 2px 4px rgba(24, 144, 255, 0.3) !important;
+}
+
+/* 上传组件样式 */
+.ant-upload-drag {
+  border: 2px dashed var(--border-color) !important;
+  border-radius: 8px !important;
+  background: var(--bg-secondary) !important;
+}
+
+.ant-upload-drag:hover {
+  border-color: var(--primary-color) !important;
+  background: rgba(24, 144, 255, 0.05) !important;
+}
+
+/* 分页样式 */
+.ant-pagination-item {
+  border: 1px solid var(--border-color) !important;
+  border-radius: 4px !important;
+}
+
+.ant-pagination-item:hover {
+  border-color: var(--primary-color) !important;
+}
+
+.ant-pagination-item-active {
+  background: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
+}
+
+/* 页面标题样式 */
+.page-title {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+/* 卡片标题样式 */
+.card-title {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* 状态徽章样式 */
+.status-badge {
+  border-radius: 12px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.success {
+  background: rgba(82, 196, 26, 0.1);
+  color: var(--success-color);
+}
+
+.status-badge.warning {
+  background: rgba(250, 173, 20, 0.1);
+  color: var(--warning-color);
+}
+
+.status-badge.error {
+  background: rgba(255, 77, 79, 0.1);
+  color: var(--error-color);
+}
+
+.status-badge.info {
+  background: rgba(24, 144, 255, 0.1);
+  color: var(--info-color);
+}
+
+/* 防火墙状态徽章 */
+.firewall-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  gap: 6px;
+}
+
+.firewall-status.running {
+  background: rgba(82, 196, 26, 0.15);
+  color: var(--success-color);
+  border: 1px solid rgba(82, 196, 26, 0.3);
+}
+
+.firewall-status.stopped {
+  background: rgba(255, 77, 79, 0.15);
+  color: var(--error-color);
+  border: 1px solid rgba(255, 77, 79, 0.3);
+}
+
+.firewall-status.mode {
+  background: rgba(24, 144, 255, 0.15);
+  color: var(--info-color);
+  border: 1px solid rgba(24, 144, 255, 0.3);
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* 悬停效果 */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-medium) !important;
+}
+
+/* 加载动画 */
+.loading-spinner {
+  border: 2px solid var(--border-color);
+  border-top: 2px solid var(--primary-color);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

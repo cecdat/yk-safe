@@ -1,6 +1,6 @@
 // 导入部分保持不变
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Dropdown, Space, message, Badge } from 'antd';
+import { Layout, Menu, Button, Dropdown, Space, message, Badge, Switch, Modal } from 'antd';
 import {
   SafetyOutlined,
   MonitorOutlined,
@@ -10,10 +10,12 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   ExclamationCircleOutlined,
-  CheckCircleOutlined
+  CheckCircleOutlined,
+  ToolOutlined,
+  SettingOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getFirewallConfig, startFirewall, stopFirewall } from '../../api/firewall';
+import { getFirewallConfig, startFirewall, stopFirewall, updateFirewallMode } from '../../api/firewall';
 
 const { Header, Sider, Content } = Layout;
 
@@ -21,6 +23,7 @@ const AppLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [firewallStatus, setFirewallStatus] = useState({ is_running: false });
   const [firewallMode, setFirewallMode] = useState('blacklist');
+  const [modeSwitchLoading, setModeSwitchLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -85,6 +88,51 @@ const AppLayout = ({ children }) => {
     }
   };
 
+  // 模式切换处理函数
+  const handleModeSwitch = async (checked) => {
+    const newMode = checked ? 'whitelist' : 'blacklist';
+    const oldMode = firewallMode;
+    
+    // 二次确认
+    Modal.confirm({
+      title: '确认切换防火墙模式',
+      content: (
+        <div>
+          <p><strong>当前模式：</strong>{oldMode === 'whitelist' ? '白名单模式' : '黑名单模式'}</p>
+          <p><strong>切换为：</strong>{newMode === 'whitelist' ? '白名单模式' : '黑名单模式'}</p>
+          <div style={{ marginTop: 16, padding: 12, backgroundColor: '#fff7e6', border: '1px solid #ffd591', borderRadius: 6 }}>
+            <p style={{ margin: 0, color: '#d46b08', fontWeight: 'bold' }}>⚠️ 重要提醒：</p>
+            <ul style={{ margin: '8px 0 0 0', paddingLeft: 20, color: '#d46b08' }}>
+              <li>模式切换将影响所有现有规则的生效方式</li>
+              <li>白名单模式：只允许明确允许的连接</li>
+              <li>黑名单模式：默认允许所有连接，只拒绝明确拒绝的连接</li>
+              <li>切换后请检查现有规则是否符合新的模式要求</li>
+            </ul>
+          </div>
+        </div>
+      ),
+      okText: '确认切换',
+      cancelText: '取消',
+      okType: 'danger',
+      onOk: async () => {
+        setModeSwitchLoading(true);
+        try {
+          await updateFirewallMode(newMode, `从${oldMode === 'whitelist' ? '白名单' : '黑名单'}模式切换到${newMode === 'whitelist' ? '白名单' : '黑名单'}模式`);
+          message.success(`防火墙模式已切换到${newMode === 'whitelist' ? '白名单' : '黑名单'}模式`);
+          setFirewallMode(newMode);
+        } catch (error) {
+          message.error('模式切换失败');
+          console.error('Mode switch error:', error);
+        } finally {
+          setModeSwitchLoading(false);
+        }
+      },
+      onCancel: () => {
+        // 取消时不需要做任何操作，Switch会自动回弹
+      }
+    });
+  };
+
   const userMenu = (
     <Menu>
       <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={handleLogout}>
@@ -118,6 +166,16 @@ const AppLayout = ({ children }) => {
       key: '/logs',
       icon: <FileTextOutlined />,
       label: '系统日志',
+    },
+    {
+      key: '/network-tools',
+      icon: <ToolOutlined />,
+      label: '网络工具',
+    },
+    {
+      key: '/settings',
+      icon: <SettingOutlined />,
+      label: '系统设置',
     },
   ];
 
@@ -175,46 +233,35 @@ const AppLayout = ({ children }) => {
               display: 'flex',
               alignItems: 'center',
               gap: '16px',
-              padding: '8px 16px',
-              background: 'rgba(0, 0, 0, 0.02)',
-              borderRadius: '8px',
-              border: '1px solid rgba(0, 0, 0, 0.06)'
+              padding: '8px 16px'
             }}>
               {/* 防火墙状态 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div className={`firewall-status ${firewallStatus.is_running ? 'running' : 'stopped'}`}>
                 {firewallStatus.is_running ? 
-                  <CheckCircleOutlined style={{ fontSize: '14px', color: '#52c41a' }} /> : 
-                  <ExclamationCircleOutlined style={{ fontSize: '14px', color: '#ff4d4f' }} />
+                  <CheckCircleOutlined style={{ fontSize: '14px' }} /> : 
+                  <ExclamationCircleOutlined style={{ fontSize: '14px' }} />
                 }
-                <span style={{
-                  fontSize: '13px',
-                  fontWeight: '500',
-                  color: firewallStatus.is_running ? '#52c41a' : '#ff4d4f'
-                }}>
+                <span>
                   {firewallStatus.is_running ? '运行中' : '已停止'}
                 </span>
               </div>
               
               {/* 分隔线 */}
-              <div style={{ width: '1px', height: '20px', background: 'rgba(0, 0, 0, 0.1)' }} />
+              <div style={{ width: '1px', height: '20px', background: 'rgba(127, 176, 105, 0.2)' }} />
               
               {/* 防火墙模式 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{
-                  fontSize: '13px',
-                  fontWeight: '500',
-                  color: '#333'
-                }}>
+              <div className="firewall-status mode">
+                <span>
                   {firewallMode === 'blacklist' ? '黑名单模式' : firewallMode === 'whitelist' ? '白名单模式' : '未知模式'}
                 </span>
               </div>
               
               {/* 分隔线 */}
-              <div style={{ width: '1px', height: '20px', background: 'rgba(0, 0, 0, 0.1)' }} />
+              <div style={{ width: '1px', height: '20px', background: 'rgba(127, 176, 105, 0.2)' }} />
               
               {/* 防火墙启停控制 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '13px', color: '#666' }}>启停:</span>
+                <span style={{ fontSize: '13px', color: '#6B7A6B' }}>启停:</span>
                 <Switch
                   checked={firewallStatus.is_running}
                   onChange={handleFirewallToggle}
@@ -224,11 +271,30 @@ const AppLayout = ({ children }) => {
                   style={{ minWidth: '50px' }}
                 />
               </div>
+              
+              {/* 分隔线 */}
+              <div style={{ width: '1px', height: '20px', background: 'rgba(127, 176, 105, 0.2)' }} />
+              
+              {/* 模式切换控制 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '13px', color: '#6B7A6B' }}>模式:</span>
+                <Switch
+                  checked={firewallMode === 'whitelist'}
+                  onChange={handleModeSwitch}
+                  checkedChildren="白名单"
+                  unCheckedChildren="黑名单"
+                  size="small"
+                  loading={modeSwitchLoading}
+                  style={{ minWidth: '60px' }}
+                />
+              </div>
             </div>
             
             <Dropdown overlay={userMenu} placement="bottomRight">
-              <Button type="text" icon={<UserOutlined />}>
-                管理员
+              <Button type="text" icon={<UserOutlined />} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Badge count={0} size="default" style={{ marginRight: '8px' }}>
+                  <span>管理员</span>
+                </Badge>
               </Button>
             </Dropdown>
           </Space>

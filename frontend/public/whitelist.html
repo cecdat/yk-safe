@@ -521,8 +521,10 @@
                     isp: proxyData.isp
                 });
 
-                // 更新调试信息区域
-                updateDebugInfo(proxyData);
+                // 更新调试信息区域（如果函数存在）
+                if (typeof updateDebugInfo === 'function') {
+                    updateDebugInfo(proxyData);
+                }
 
                 // 改进的代理检测逻辑：只有在明确检测到代理时才显示警告
                 if (proxyData.is_proxy && proxyData.confidence && proxyData.confidence > 0.8) {

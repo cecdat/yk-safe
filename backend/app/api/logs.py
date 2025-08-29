@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Optional
 from datetime import datetime, timedelta
 
@@ -184,7 +185,7 @@ def get_log_stats(db: Session = Depends(get_db)):
     # 威胁等级统计
     threat_stats = db.query(
         FirewallLog.threat_level,
-        db.func.count(FirewallLog.id).label('count')
+        func.count(FirewallLog.id).label('count')
     ).filter(
         FirewallLog.timestamp >= yesterday
     ).group_by(FirewallLog.threat_level).all()
@@ -192,7 +193,7 @@ def get_log_stats(db: Session = Depends(get_db)):
     # 协议统计
     protocol_stats = db.query(
         FirewallLog.protocol,
-        db.func.count(FirewallLog.id).label('count')
+        func.count(FirewallLog.id).label('count')
     ).filter(
         FirewallLog.timestamp >= yesterday
     ).group_by(FirewallLog.protocol).all()
@@ -200,12 +201,12 @@ def get_log_stats(db: Session = Depends(get_db)):
     # 国家统计（前5个）
     country_stats = db.query(
         FirewallLog.country,
-        db.func.count(FirewallLog.id).label('count')
+        func.count(FirewallLog.id).label('count')
     ).filter(
         FirewallLog.timestamp >= yesterday,
         FirewallLog.country.isnot(None)
     ).group_by(FirewallLog.country).order_by(
-        db.func.count(FirewallLog.id).desc()
+        func.count(FirewallLog.id).desc()
     ).limit(5).all()
     
     return ResponseModel(

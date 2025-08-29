@@ -123,3 +123,61 @@ class TokenAuditLog(Base):
     user = Column(String, nullable=False)
     details = Column(Text)  # 详细操作信息
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class NetworkCapture(Base):
+    __tablename__ = "network_captures"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(String, unique=True, index=True)
+    protocol = Column(String)  # tcp, udp, icmp, all
+    interface = Column(String)
+    source_ip = Column(String, nullable=True)
+    target_ip = Column(String, nullable=True)
+    duration = Column(Integer)  # 抓包时长(秒)
+    status = Column(String)  # running, completed, failed, stopped
+    filename = Column(String, nullable=True)
+    file_path = Column(String, nullable=True)
+    file_size = Column(Integer, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class NetworkTask(Base):
+    __tablename__ = "network_tasks"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(String, unique=True, index=True)
+    command = Column(String)  # ping, traceroute
+    target = Column(String)
+    status = Column(String)  # running, completed, failed
+    output = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class SystemBackup(Base):
+    __tablename__ = "system_backups"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    backup_id = Column(String, unique=True, index=True)
+    filename = Column(String)
+    file_path = Column(String, nullable=True)
+    file_size = Column(Integer, nullable=True)
+    status = Column(String)  # running, completed, failed
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PushConfig(Base):
+    __tablename__ = "push_configs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    webhook_enabled = Column(Boolean, default=False)
+    webhook_url = Column(String, nullable=True)
+    webhook_types = Column(Text, nullable=True)  # 逗号分隔的推送类型
+    bark_enabled = Column(Boolean, default=False)
+    bark_url = Column(String, nullable=True)
+    bark_types = Column(Text, nullable=True)  # 逗号分隔的推送类型
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

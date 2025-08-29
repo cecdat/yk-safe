@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, func
 from typing import List, Optional
 import secrets
 import string
@@ -410,6 +410,9 @@ def get_token_stats(db: Session = Depends(get_db)):
             WhitelistRequest.status == "pending"
         ).count()
         
+        # 总使用次数（所有token的used_count总和）
+        total_usage = db.query(func.sum(WhitelistToken.used_count)).scalar() or 0
+        
         return TokenStatsResponse(
             total_tokens=total_tokens,
             active_tokens=active_tokens,
@@ -417,7 +420,8 @@ def get_token_stats(db: Session = Depends(get_db)):
             auto_approve_tokens=auto_approve_tokens,
             today_tokens=today_tokens,
             total_requests=total_requests,
-            pending_requests=pending_requests
+            pending_requests=pending_requests,
+            total_usage=total_usage
         )
         
     except Exception as e:

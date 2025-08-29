@@ -26,7 +26,8 @@ import {
   CopyOutlined,
   KeyOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined
+  CloseCircleOutlined,
+  UserOutlined
 } from '@ant-design/icons';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 import dayjs from 'dayjs';
@@ -215,19 +216,27 @@ const TokenManagement = () => {
       title: '状态',
       key: 'status',
       width: 120,
-             render: (_, record) => {
-         return (
-           <Space direction="vertical" size="small">
-             <Tag color={record.is_active ? 'green' : 'red'}>
-               {record.is_active ? '激活' : '禁用'}
-             </Tag>
-             <Tag color="blue">永久有效</Tag>
-             {record.auto_approve && (
-               <Tag color="orange">自动审批</Tag>
-             )}
-           </Space>
-         );
-       },
+      render: (_, record) => {
+        // 判断Token状态
+        let status = '未使用';
+        let color = 'blue';
+        
+        if (record.used_count > 0) {
+          if (record.used_count >= record.max_uses) {
+            status = '已用完';
+            color = 'red';
+          } else {
+            status = '已使用';
+            color = 'orange';
+          }
+        }
+        
+        return (
+          <Tag color={color}>
+            {status}
+          </Tag>
+        );
+      },
     },
     
     {
@@ -277,13 +286,22 @@ const TokenManagement = () => {
             />
           </Card>
         </Col>
-        
         <Col span={6}>
           <Card>
             <Statistic
               title="今日创建"
               value={stats.today_tokens || 0}
               prefix={<PlusOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="总使用次数"
+              value={stats.total_usage || 0}
+              valueStyle={{ color: '#1890ff' }}
+              prefix={<UserOutlined />}
             />
           </Card>
         </Col>
