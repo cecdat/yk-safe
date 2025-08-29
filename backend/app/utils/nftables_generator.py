@@ -593,7 +593,17 @@ table inet filter {
             rule_text = action
         
         # 用户自定义规则添加到应用专用链
+        # 在白名单模式下，需要将accept规则插入到drop规则之前
         command = ['nft', 'add', 'rule', 'inet', self.filter_table_name, self.app_chain_name]
+        
+        # 如果是白名单模式且是accept规则，需要插入到drop规则之前
+        if action == "accept":
+            # 获取当前链中的规则数量，找到drop规则的位置
+            drop_position = self._get_drop_rule_position()
+            if drop_position > 0:
+                # 在drop规则之前插入
+                command.extend(['position', str(drop_position)])
+        
         # 安全地构建命令，避免split()拆分问题
         if conditions:
             command.extend(conditions)
@@ -1074,6 +1084,37 @@ table inet filter {
         except Exception:
             return 0
 
+    def _get_drop_rule_position(self) -> int:
+        """获取drop规则在应用专用链中的位置"""
+        try:
+            result = subprocess.run(
+                ['nft', 'list', 'chain', 'inet', self.filter_table_name, self.app_chain_name],
+                capture_output=True, text=True, shell=False
+            )
+            if result.returncode != 0:
+                return -1
+            
+            lines = result.stdout.strip().split('\n')
+            position = 0
+            
+            for line in lines:
+                line = line.strip()
+                # 跳过注释、空行、链定义行
+                if (line and not line.startswith('#') and 
+                    not line.startswith('chain') and 
+                    not line.startswith('type') and 
+                    not line.startswith('policy') and
+                    not line.startswith('}')):
+                    position += 1
+                    # 检查是否是drop规则
+                    if 'drop' in line and not line.startswith('#'):
+                        return position
+            
+            return -1  # 没有找到drop规则
+        except Exception as e:
+            logger.error(f"获取drop规则位置时出错: {e}")
+            return -1
+
     def sync_rules_from_db(self) -> bool:
         """
         从数据库同步所有规则到应用专用链
@@ -1100,16 +1141,47 @@ table inet filter {
             rules = self.db.query(FirewallRule).filter(FirewallRule.is_active == True).all()
             logger.info(f"从数据库获取到 {len(rules)} 条活动规则")
             
-            # 3. 逐条将规则添加到应用专用链中
-            success_count = 0
-            for rule in rules:
-                if self.add_rule_realtime(rule):
-                    success_count += 1
-                else:
-                    logger.error(f"添加规则失败: {rule.rule_name}")
+            # 3. 获取当前防火墙模式
+            config = self.db.query(FirewallConfig).first()
+            mode = config.mode if config else "blacklist"
             
-            logger.info(f"✅ 规则同步完成: {success_count}/{len(rules)} 条规则成功添加")
-            return success_count == len(rules)
+            # 4. 在白名单模式下，需要按正确顺序添加规则
+            if mode == "whitelist":
+                logger.info("白名单模式：按正确顺序添加规则（accept规则在drop规则之前）")
+                
+                # 先添加所有accept规则
+                accept_rules = [rule for rule in rules if rule.action == "accept"]
+                drop_rules = [rule for rule in rules if rule.action == "drop"]
+                
+                success_count = 0
+                
+                # 添加accept规则
+                for rule in accept_rules:
+                    if self.add_rule_realtime(rule):
+                        success_count += 1
+                    else:
+                        logger.error(f"添加accept规则失败: {rule.rule_name}")
+                
+                # 添加drop规则
+                for rule in drop_rules:
+                    if self.add_rule_realtime(rule):
+                        success_count += 1
+                    else:
+                        logger.error(f"添加drop规则失败: {rule.rule_name}")
+                
+                logger.info(f"✅ 白名单模式规则同步完成: {success_count}/{len(rules)} 条规则成功添加")
+                return success_count == len(rules)
+            else:
+                # 黑名单模式：按原有顺序添加
+                success_count = 0
+                for rule in rules:
+                    if self.add_rule_realtime(rule):
+                        success_count += 1
+                    else:
+                        logger.error(f"添加规则失败: {rule.rule_name}")
+                
+                logger.info(f"✅ 黑名单模式规则同步完成: {success_count}/{len(rules)} 条规则成功添加")
+                return success_count == len(rules)
             
         except Exception as e:
             logger.error(f"同步规则时出错: {e}")
