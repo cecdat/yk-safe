@@ -587,7 +587,7 @@ def get_firewall_config(db: Session = Depends(get_db)):
 
 @router.put("/config/mode", response_model=ResponseModel)
 def update_firewall_mode(mode_update: FirewallModeUpdate, db: Session = Depends(get_db)):
-    """更新防火墙模式"""
+    """更新防火墙模式（已重构 - 使用动态生成）"""
     if mode_update.mode not in ["blacklist", "whitelist"]:
         raise HTTPException(status_code=400, detail="无效的模式，只支持 blacklist 或 whitelist")
     
@@ -604,56 +604,34 @@ def update_firewall_mode(mode_update: FirewallModeUpdate, db: Session = Depends(
     db.commit()
     db.refresh(config)
     
-    # 使用预置配置文件切换模式
     try:
-        # 备份当前配置
-        if os.path.exists('/etc/nftables.conf'):
-            import shutil
-            from datetime import datetime
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            backup_path = f"/etc/nftables.conf.backup.{old_mode}.{timestamp}"
-            shutil.copy2('/etc/nftables.conf', backup_path)
-            print(f"已备份当前配置到: {backup_path}")
+        print(f"[DEBUG] 开始切换防火墙模式: {old_mode} -> {mode_update.mode}")
         
-        # 根据模式选择预置配置文件
-        if mode_update.mode == "blacklist":
-            preset_file = "/etc/nftables-presets/blacklist.conf"
-        else:  # whitelist
-            preset_file = "/etc/nftables-presets/whitelist.conf"
+        # 使用 NftablesGenerator 动态生成并应用新配置
+        from app.utils.nftables_generator import NftablesGenerator
+        generator = NftablesGenerator(db)
         
-        # 检查预置配置文件是否存在
-        if not os.path.exists(preset_file):
-            raise Exception(f"预置配置文件不存在: {preset_file}")
+        print(f"[DEBUG] 使用 NftablesGenerator 生成新配置...")
+        success = generator.apply_config()
         
-        # 复制预置配置文件到主配置文件
-        shutil.copy2(preset_file, '/etc/nftables.conf')
-        print(f"已应用{mode_update.mode}模式预置配置")
+        if not success:
+            raise Exception("应用新的防火墙配置失败")
         
-        # 应用新配置
-        result = subprocess.run(
-            ['nft', '-f', '/etc/nftables.conf'],
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
+        print(f"[DEBUG] 防火墙模式切换成功: {old_mode} -> {mode_update.mode}")
         
-        if result.returncode != 0:
-            raise Exception(f"应用配置失败: {result.stderr}")
-        
-        print(f"防火墙模式切换成功: {old_mode} -> {mode_update.mode}")
-        
-        # 同步规则到新配置
+        # 验证新配置是否正确应用
         try:
-            from app.utils.mode_switch_sync import sync_rules_after_mode_switch
-            if sync_rules_after_mode_switch(db, mode_update.mode):
-                print("规则同步成功")
+            # 检查防火墙状态
+            result = subprocess.run(['nft', 'list', 'ruleset'], capture_output=True, text=True, timeout=10)
+            if result.returncode != 0:
+                print(f"[WARNING] 无法验证防火墙规则状态: {result.stderr}")
             else:
-                print("规则同步失败，但模式切换已完成")
-        except Exception as sync_error:
-            print(f"规则同步出错: {sync_error}")
+                print(f"[DEBUG] 防火墙规则验证成功，当前规则数量: {len(result.stdout.splitlines())}")
+        except Exception as verify_error:
+            print(f"[WARNING] 验证防火墙配置时出错: {verify_error}")
         
     except Exception as e:
-        print(f"模式切换失败: {e}")
+        print(f"[ERROR] 模式切换失败: {e}")
         # 回滚数据库更改
         config.mode = old_mode
         db.commit()

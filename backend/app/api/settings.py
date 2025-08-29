@@ -26,14 +26,15 @@ def change_password(password_data: PasswordChange, db: Session = Depends(get_db)
         if not user:
             raise HTTPException(status_code=404, detail="用户不存在")
         
-        # 验证旧密码
-        old_password_hash = hashlib.sha256(password_data.old_password.encode()).hexdigest()
-        if user.hashed_password != old_password_hash:
+        # 使用 bcrypt 验证旧密码
+        import bcrypt
+        if not bcrypt.checkpw(password_data.old_password.encode('utf-8'), user.hashed_password.encode('utf-8')):
             raise HTTPException(status_code=400, detail="当前密码错误")
         
-        # 更新新密码
-        new_password_hash = hashlib.sha256(password_data.new_password.encode()).hexdigest()
-        user.hashed_password = new_password_hash
+        # 使用 bcrypt 加密新密码
+        salt = bcrypt.gensalt()
+        new_password_hash = bcrypt.hashpw(password_data.new_password.encode('utf-8'), salt)
+        user.hashed_password = new_password_hash.decode('utf-8')
         db.commit()
         
         return ResponseModel(

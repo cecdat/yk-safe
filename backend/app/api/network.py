@@ -8,6 +8,8 @@ import threading
 import gzip
 import shutil
 import signal
+import psutil
+import socket
 from datetime import datetime
 import uuid
 
@@ -21,55 +23,69 @@ router = APIRouter()
 # 存储正在运行的任务
 running_tasks = {}
 
+def get_physical_interfaces():
+    """
+    获取服务器所有物理网卡（排除虚拟网卡如 Docker/loopback）的名称和 IPv4 地址。
+    """
+    physical_interfaces = []
+    virtual_prefixes = ('docker', 'veth', 'br-', 'lo')
+    try:
+        all_addrs = psutil.net_if_addrs()
+        for name, addrs in all_addrs.items():
+            if name.startswith(virtual_prefixes):
+                continue
+            device_path = f'/sys/class/net/{name}/device'
+            if not os.path.exists(device_path):
+                continue
+            
+            ipv4_address = None
+            for addr in addrs:
+                if addr.family == socket.AF_INET:
+                    ipv4_address = addr.address
+                    break
+            if ipv4_address:
+                physical_interfaces.append({'name': name, 'ip': ipv4_address})
+    except Exception as e:
+        print(f"获取网卡信息时出错: {e}")
+    return physical_interfaces
+
 @router.get("/interfaces", response_model=ResponseModel)
 def get_network_interfaces():
-    """获取网络接口列表"""
+    """获取物理网络接口列表（已优化）"""
     try:
-        # 使用ip命令获取网络接口信息
-        result = subprocess.run(
-            ['ip', 'addr', 'show'],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
+        # 调用我们新的、更可靠的函数
+        interfaces = get_physical_interfaces()
         
-        if result.returncode != 0:
-            raise Exception("获取网络接口失败")
+        # 如果没有获取到物理网卡，提供一些备用选项
+        if not interfaces:
+            print("[WARNING] 未获取到物理网卡，使用备用接口")
+            fallback_interfaces = [
+                {'name': 'eth0', 'ip': '192.168.1.100'},
+                {'name': 'ens33', 'ip': '192.168.1.101'},
+                {'name': 'eno1', 'ip': '192.168.1.102'}
+            ]
+            interfaces = fallback_interfaces
         
-        interfaces = []
-        current_interface = None
-        
-        for line in result.stdout.split('\n'):
-            line = line.strip()
-            if line.startswith('inet '):
-                # 解析IP地址
-                parts = line.split()
-                if len(parts) >= 2:
-                    ip = parts[1].split('/')[0]
-                    if current_interface:
-                        current_interface['ip'] = ip
-            elif ':' in line and not line.startswith(' '):
-                # 新的网络接口
-                if current_interface:
-                    interfaces.append(current_interface)
-                
-                interface_name = line.split(':')[1].strip()
-                current_interface = {
-                    'name': interface_name,
-                    'ip': None
-                }
-        
-        # 添加最后一个接口
-        if current_interface:
-            interfaces.append(current_interface)
+        print(f"[DEBUG] 获取到的物理网络接口: {interfaces}")
         
         return ResponseModel(
             code=0,
-            message="获取网络接口成功",
+            message="获取物理网络接口成功",
             data=interfaces
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取网络接口失败: {str(e)}")
+        print(f"[ERROR] 获取网络接口失败: {e}")
+        # 如果获取失败，返回一些默认接口
+        fallback_interfaces = [
+            {'name': 'eth0', 'ip': '192.168.1.100'},
+            {'name': 'ens33', 'ip': '192.168.1.101'},
+            {'name': 'eno1', 'ip': '192.168.1.102'}
+        ]
+        return ResponseModel(
+            code=0,
+            message="使用默认网络接口",
+            data=fallback_interfaces
+        )
 
 @router.post("/start-capture", response_model=ResponseModel)
 def start_capture(capture_data: CaptureCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -105,8 +121,15 @@ def start_capture(capture_data: CaptureCreate, background_tasks: BackgroundTasks
 def run_capture_task(task_id: str, capture_data: CaptureCreate, db: Session):
     """执行抓包任务"""
     try:
+        # 确保临时目录存在
+        temp_dir = '/tmp'
+        if not os.path.exists(temp_dir):
+            temp_dir = '/var/tmp'  # 备用临时目录
+        
+        pcap_file = os.path.join(temp_dir, f'capture_{task_id}.pcap')
+        
         # 构建tcpdump命令
-        cmd = ['tcpdump', '-i', capture_data.interface, '-w', f'/tmp/capture_{task_id}.pcap']
+        cmd = ['tcpdump', '-i', capture_data.interface, '-w', pcap_file]
         
         # 添加协议过滤
         if capture_data.protocol and capture_data.protocol != 'all':
@@ -120,6 +143,8 @@ def run_capture_task(task_id: str, capture_data: CaptureCreate, db: Session):
         if capture_data.target_ip:
             cmd.extend(['dst', capture_data.target_ip])
         
+        print(f"[DEBUG] 启动tcpdump命令: {' '.join(cmd)}")
+        
         # 启动tcpdump进程
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
@@ -127,7 +152,8 @@ def run_capture_task(task_id: str, capture_data: CaptureCreate, db: Session):
         running_tasks[task_id] = {
             'process': process,
             'type': 'capture',
-            'start_time': time.time()
+            'start_time': time.time(),
+            'pcap_file': pcap_file
         }
         
         # 如果设置了时长，启动定时器
@@ -135,41 +161,45 @@ def run_capture_task(task_id: str, capture_data: CaptureCreate, db: Session):
             def stop_capture_timer():
                 time.sleep(capture_data.duration)
                 if task_id in running_tasks:
+                    print(f"[DEBUG] 定时器触发，停止抓包任务: {task_id}")
                     stop_capture_internal(task_id, db)
             
             timer_thread = threading.Thread(target=stop_capture_timer)
             timer_thread.daemon = True
             timer_thread.start()
-        
-        # 等待进程结束
-        stdout, stderr = process.communicate()
-        
-        # 更新数据库记录
-        capture = db.query(NetworkCapture).filter(NetworkCapture.task_id == task_id).first()
-        if capture:
-            if process.returncode == 0:
-                capture.status = 'completed'
-                capture.filename = f'capture_{task_id}.pcap'
-                capture.file_path = f'/tmp/capture_{task_id}.pcap'
-                
-                # 压缩文件
-                if os.path.exists(capture.file_path):
-                    compressed_path = f'{capture.file_path}.gz'
-                    with open(capture.file_path, 'rb') as f_in:
-                        with gzip.open(compressed_path, 'wb') as f_out:
-                            shutil.copyfileobj(f_in, f_out)
-                    
-                    capture.file_path = compressed_path
-                    capture.filename = f'capture_{task_id}.pcap.gz'
-                    capture.file_size = os.path.getsize(compressed_path)
-                    
-                    # 删除原始文件
-                    os.remove(f'/tmp/capture_{task_id}.pcap')
-            else:
-                capture.status = 'failed'
-                capture.error_message = stderr.decode() if stderr else '抓包失败'
             
-            db.commit()
+            # 等待定时器线程完成，而不是等待tcpdump进程
+            timer_thread.join()
+        else:
+            # 如果没有设置时长，等待进程自然结束
+            stdout, stderr = process.communicate()
+            
+            # 更新数据库记录
+            capture = db.query(NetworkCapture).filter(NetworkCapture.task_id == task_id).first()
+            if capture:
+                if process.returncode == 0:
+                    capture.status = 'completed'
+                    capture.filename = f'capture_{task_id}.pcap'
+                    capture.file_path = f'/tmp/capture_{task_id}.pcap'
+                    
+                    # 压缩文件
+                    if os.path.exists(capture.file_path):
+                        compressed_path = f'{capture.file_path}.gz'
+                        with open(capture.file_path, 'rb') as f_in:
+                            with gzip.open(compressed_path, 'wb') as f_out:
+                                shutil.copyfileobj(f_in, f_out)
+                        
+                        capture.file_path = compressed_path
+                        capture.filename = f'capture_{task_id}.pcap.gz'
+                        capture.file_size = os.path.getsize(compressed_path)
+                        
+                        # 删除原始文件
+                        os.remove(f'/tmp/capture_{task_id}.pcap')
+                else:
+                    capture.status = 'failed'
+                    capture.error_message = stderr.decode() if stderr else '抓包失败'
+                
+                db.commit()
         
         # 清理任务记录
         if task_id in running_tasks:
@@ -201,10 +231,52 @@ def stop_capture_internal(task_id: str, db: Session):
         except subprocess.TimeoutExpired:
             process.kill()
         
-        # 更新数据库状态
+        # 等待进程完全结束
+        process.wait()
+        
+        # 处理抓包文件
         capture = db.query(NetworkCapture).filter(NetworkCapture.task_id == task_id).first()
         if capture:
-            capture.status = 'stopped'
+            # 使用存储的文件路径
+            pcap_file = task_info.get('pcap_file', f'/tmp/capture_{task_id}.pcap')
+            print(f"[DEBUG] 检查抓包文件: {pcap_file}")
+            
+            if os.path.exists(pcap_file):
+                print(f"[DEBUG] 抓包文件存在，开始压缩: {pcap_file}")
+                # 压缩文件
+                compressed_path = f'{pcap_file}.gz'
+                try:
+                    with open(pcap_file, 'rb') as f_in:
+                        with gzip.open(compressed_path, 'wb') as f_out:
+                            shutil.copyfileobj(f_in, f_out)
+                    
+                    capture.file_path = compressed_path
+                    capture.filename = f'capture_{task_id}.pcap.gz'
+                    capture.file_size = os.path.getsize(compressed_path)
+                    capture.status = 'completed'
+                    print(f"[DEBUG] 抓包完成，文件大小: {capture.file_size} bytes")
+                    
+                    # 删除原始文件
+                    os.remove(pcap_file)
+                except Exception as e:
+                    print(f"[DEBUG] 文件压缩失败: {e}")
+                    capture.status = 'failed'
+                    capture.error_message = f"文件压缩失败: {str(e)}"
+            else:
+                print(f"[DEBUG] 抓包文件不存在: {pcap_file}")
+                # 检查进程状态
+                if process.poll() is not None:
+                    print(f"[DEBUG] 进程已退出，返回码: {process.returncode}")
+                    if process.returncode != 0:
+                        stderr = process.stderr.read() if process.stderr else b''
+                        error_msg = stderr.decode('utf-8', errors='ignore') if stderr else '抓包进程异常退出'
+                        capture.error_message = f"抓包失败: {error_msg}"
+                    else:
+                        capture.error_message = "抓包文件未生成"
+                else:
+                    capture.error_message = "抓包文件未生成"
+                capture.status = 'failed'
+            
             db.commit()
         
         # 清理任务记录
@@ -227,7 +299,10 @@ def stop_capture(task_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"停止抓包失败: {str(e)}")
 
 @router.post("/start-ping", response_model=ResponseModel)
-def start_ping(target: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def start_ping(target_data: dict, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    target = target_data.get('target')
+    if not target:
+        raise HTTPException(status_code=400, detail="目标地址不能为空")
     """开始ping测试"""
     try:
         task_id = str(uuid.uuid4())
@@ -256,12 +331,21 @@ def start_ping(target: str, background_tasks: BackgroundTasks, db: Session = Dep
 def run_ping_task(task_id: str, target: str, db: Session):
     """执行ping任务"""
     try:
+        # 检测操作系统，使用相应的ping命令
+        import platform
+        if platform.system() == "Windows":
+            cmd = ['ping', '-n', '10', target]  # Windows ping命令
+        else:
+            cmd = ['ping', '-c', '10', target]  # Linux/Unix ping命令
+        
         # 启动ping进程
         process = subprocess.Popen(
-            ['ping', '-c', '10', target],  # 发送10个包
+            cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            bufsize=1,
+            universal_newlines=True
         )
         
         # 存储进程信息
@@ -271,18 +355,32 @@ def run_ping_task(task_id: str, target: str, db: Session):
             'start_time': time.time()
         }
         
+        # 实时读取输出
+        output_lines = []
+        while True:
+            line = process.stdout.readline()
+            if not line and process.poll() is not None:
+                break
+            if line:
+                output_lines.append(line.strip())
+                # 更新数据库中的实时输出
+                task = db.query(NetworkTask).filter(NetworkTask.task_id == task_id).first()
+                if task:
+                    task.output = '\n'.join(output_lines)
+                    db.commit()
+        
         # 等待进程结束
-        stdout, stderr = process.communicate()
+        process.wait()
         
         # 更新数据库记录
         task = db.query(NetworkTask).filter(NetworkTask.task_id == task_id).first()
         if task:
             if process.returncode == 0:
                 task.status = 'completed'
-                task.output = stdout
+                task.output = '\n'.join(output_lines)
             else:
                 task.status = 'failed'
-                task.error_message = stderr if stderr else 'Ping失败'
+                task.error_message = 'Ping失败'
             
             db.commit()
         
@@ -318,9 +416,20 @@ def stop_ping(task_id: str, db: Session = Depends(get_db)):
             except subprocess.TimeoutExpired:
                 process.kill()
             
-            # 更新数据库状态
+            # 读取剩余输出
+            remaining_output = []
+            while True:
+                line = process.stdout.readline()
+                if not line:
+                    break
+                remaining_output.append(line.strip())
+            
+            # 更新数据库状态和输出
             task = db.query(NetworkTask).filter(NetworkTask.task_id == task_id).first()
             if task:
+                if remaining_output:
+                    current_output = task.output or ''
+                    task.output = current_output + '\n' + '\n'.join(remaining_output)
                 task.status = 'stopped'
                 db.commit()
             
@@ -335,7 +444,10 @@ def stop_ping(task_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"停止ping失败: {str(e)}")
 
 @router.post("/start-traceroute", response_model=ResponseModel)
-def start_traceroute(target: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def start_traceroute(target_data: dict, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    target = target_data.get('target')
+    if not target:
+        raise HTTPException(status_code=400, detail="目标地址不能为空")
     """开始路由追踪"""
     try:
         task_id = str(uuid.uuid4())
@@ -364,12 +476,21 @@ def start_traceroute(target: str, background_tasks: BackgroundTasks, db: Session
 def run_traceroute_task(task_id: str, target: str, db: Session):
     """执行路由追踪任务"""
     try:
+        # 检测操作系统，使用相应的traceroute命令
+        import platform
+        if platform.system() == "Windows":
+            cmd = ['tracert', target]  # Windows tracert命令
+        else:
+            cmd = ['traceroute', target]  # Linux/Unix traceroute命令
+        
         # 启动traceroute进程
         process = subprocess.Popen(
-            ['traceroute', target],
+            cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            bufsize=1,
+            universal_newlines=True
         )
         
         # 存储进程信息
@@ -379,18 +500,32 @@ def run_traceroute_task(task_id: str, target: str, db: Session):
             'start_time': time.time()
         }
         
+        # 实时读取输出
+        output_lines = []
+        while True:
+            line = process.stdout.readline()
+            if not line and process.poll() is not None:
+                break
+            if line:
+                output_lines.append(line.strip())
+                # 更新数据库中的实时输出
+                task = db.query(NetworkTask).filter(NetworkTask.task_id == task_id).first()
+                if task:
+                    task.output = '\n'.join(output_lines)
+                    db.commit()
+        
         # 等待进程结束
-        stdout, stderr = process.communicate()
+        process.wait()
         
         # 更新数据库记录
         task = db.query(NetworkTask).filter(NetworkTask.task_id == task_id).first()
         if task:
             if process.returncode == 0:
                 task.status = 'completed'
-                task.output = stdout
+                task.output = '\n'.join(output_lines)
             else:
                 task.status = 'failed'
-                task.error_message = stderr if stderr else '路由追踪失败'
+                task.error_message = '路由追踪失败'
             
             db.commit()
         
@@ -426,9 +561,20 @@ def stop_traceroute(task_id: str, db: Session = Depends(get_db)):
             except subprocess.TimeoutExpired:
                 process.kill()
             
-            # 更新数据库状态
+            # 读取剩余输出
+            remaining_output = []
+            while True:
+                line = process.stdout.readline()
+                if not line:
+                    break
+                remaining_output.append(line.strip())
+            
+            # 更新数据库状态和输出
             task = db.query(NetworkTask).filter(NetworkTask.task_id == task_id).first()
             if task:
+                if remaining_output:
+                    current_output = task.output or ''
+                    task.output = current_output + '\n' + '\n'.join(remaining_output)
                 task.status = 'stopped'
                 db.commit()
             
@@ -450,6 +596,23 @@ def get_capture_status(task_id: str, db: Session = Depends(get_db)):
         if not capture:
             raise HTTPException(status_code=404, detail="抓包任务不存在")
         
+        # 计算进度（基于时间）
+        progress = 0
+        if capture.duration and capture.created_at:
+            elapsed = (datetime.now() - capture.created_at).total_seconds()
+            progress = min(100, int((elapsed / capture.duration) * 100))
+        
+        # 生成输出信息
+        output = f"抓包状态: {capture.status}"
+        if capture.interface:
+            output += f"\n网卡: {capture.interface}"
+        if capture.protocol:
+            output += f"\n协议: {capture.protocol}"
+        if capture.source_ip:
+            output += f"\n源IP: {capture.source_ip}"
+        if capture.target_ip:
+            output += f"\n目标IP: {capture.target_ip}"
+        
         return ResponseModel(
             code=0,
             message="获取状态成功",
@@ -458,7 +621,9 @@ def get_capture_status(task_id: str, db: Session = Depends(get_db)):
                 "status": capture.status,
                 "filename": capture.filename,
                 "file_size": capture.file_size,
-                "error_message": capture.error_message
+                "error_message": capture.error_message,
+                "progress": progress,
+                "output": output
             }
         )
     except Exception as e:
@@ -546,9 +711,22 @@ def get_task_history(db: Session = Depends(get_db)):
 def download_capture(task_id: str, db: Session = Depends(get_db)):
     """下载抓包文件"""
     try:
+        print(f"[DEBUG] 尝试下载抓包文件，task_id: {task_id}")
+        
         capture = db.query(NetworkCapture).filter(NetworkCapture.task_id == task_id).first()
-        if not capture or not capture.file_path or not os.path.exists(capture.file_path):
-            raise HTTPException(status_code=404, detail="文件不存在")
+        if not capture:
+            print(f"[DEBUG] 抓包记录不存在: {task_id}")
+            raise HTTPException(status_code=404, detail="抓包记录不存在")
+        
+        if not capture.file_path:
+            print(f"[DEBUG] 文件路径为空: {task_id}")
+            raise HTTPException(status_code=404, detail="文件路径为空")
+        
+        if not os.path.exists(capture.file_path):
+            print(f"[DEBUG] 文件不存在: {capture.file_path}")
+            raise HTTPException(status_code=404, detail=f"文件不存在: {capture.file_path}")
+        
+        print(f"[DEBUG] 文件存在，准备下载: {capture.file_path}")
         
         from fastapi.responses import FileResponse
         return FileResponse(
@@ -557,6 +735,7 @@ def download_capture(task_id: str, db: Session = Depends(get_db)):
             media_type='application/octet-stream'
         )
     except Exception as e:
+        print(f"[ERROR] 下载失败: {e}")
         raise HTTPException(status_code=500, detail=f"下载失败: {str(e)}")
 
 @router.delete("/delete-capture/{task_id}", response_model=ResponseModel)

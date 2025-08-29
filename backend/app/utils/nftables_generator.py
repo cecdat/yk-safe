@@ -50,7 +50,15 @@ class NftablesGenerator:
     def _generate_base_config(self, mode: str = "blacklist", blacklist_ips: List[BlacklistIP] = None) -> str:
         """生成基础配置"""
         if mode == "blacklist":
-            config = """#!/usr/sbin/nft -f
+            return self._generate_blacklist_config(blacklist_ips)
+        elif mode == "whitelist":
+            return self._generate_whitelist_config()
+        else:
+            raise ValueError(f"不支持的防火墙模式: {mode}")
+    
+    def _generate_blacklist_config(self, blacklist_ips: List[BlacklistIP] = None) -> str:
+        """生成黑名单模式配置"""
+        config = """#!/usr/sbin/nft -f
 
 # 清空现有规则
 flush ruleset
@@ -63,13 +71,13 @@ table inet raw {
         flags interval
         auto-merge
 """
-            
-            # 添加黑名单IP
-            if blacklist_ips:
-                for ip in blacklist_ips:
-                    config += f"        {ip.ip_address}\n"
-            
-            config += """    }
+        
+        # 添加黑名单IP
+        if blacklist_ips:
+            for ip in blacklist_ips:
+                config += f"        {ip.ip_address}\n"
+        
+        config += """    }
     
     # 定义 prerouting 链 - 优先级 -300，确保最先执行
     chain prerouting {
@@ -163,14 +171,16 @@ table inet filter {
     }
 }
 """
-            return config
-        else:  # whitelist mode
-            return """#!/usr/sbin/nft -f
+        return config
+    
+    def _generate_whitelist_config(self) -> str:
+        """生成白名单模式配置"""
+        config = """#!/usr/sbin/nft -f
 
 # 清空现有规则
 flush ruleset
 
-# 定义 filter 表 - 白名单模式
+# 定义 filter 表 - 白名单模式：默认拒绝所有连接，只允许明确允许的IP
 table inet filter {
     # 定义链
     chain input {
@@ -197,16 +207,34 @@ table inet filter {
         
         # 允许Docker IPv6网络
         ip6 saddr fd00::/8 accept
+        
+        # 允许SSH (端口22)
+        tcp dport 22 accept
+        
+        # 允许HTTP (端口80)
+        tcp dport 80 accept
+        
+        # 允许HTTPS (端口443)
+        tcp dport 443 accept
+        
+        # 允许前端端口 (5023)
+        tcp dport 5023 accept
+
+        # 允许前端端口 (5024)
+        tcp dport 5024 accept
+
+        # 允许后端端口 (8000)
+        tcp dport 8000 accept
     }
     
     # 应用专用链 - YK-Safe应用规则专用
     chain YK_SAFE_CHAIN {
         # 白名单预置IP规则
         # 预置IP：120.226.208.2
-        ip saddr 120.226.208.2 ip daddr 0.0.0.0/0 accept
+        ip saddr 120.226.208.2 accept
         
         # 预置IP段：192.168.2.0/24
-        ip saddr 192.168.2.0/24 ip daddr 0.0.0.0/0 accept
+        ip saddr 192.168.2.0/24 accept
         
         # 用户自定义规则占位符
         {{USER_RULES_PLACEHOLDER}}
@@ -254,6 +282,7 @@ table inet filter {
     }
 }
 """
+        return config
     
     def _insert_rules_into_chain(self, config_content: str, rules: List[FirewallRule], mode: str = "blacklist") -> str:
         """将用户自定义规则插入到filter表的input链中"""

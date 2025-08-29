@@ -228,67 +228,82 @@ const AppLayout = ({ children }) => {
             }}
           />
           <Space>
-            {/* 防火墙控制区域 */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
-              padding: '8px 16px'
-            }}>
-              {/* 防火墙状态 */}
-              <div className={`firewall-status ${firewallStatus.is_running ? 'running' : 'stopped'}`}>
-                {firewallStatus.is_running ? 
-                  <CheckCircleOutlined style={{ fontSize: '14px' }} /> : 
-                  <ExclamationCircleOutlined style={{ fontSize: '14px' }} />
-                }
-                <span>
-                  {firewallStatus.is_running ? '运行中' : '已停止'}
-                </span>
-              </div>
-              
-              {/* 分隔线 */}
-              <div style={{ width: '1px', height: '20px', background: 'rgba(127, 176, 105, 0.2)' }} />
-              
-              {/* 防火墙模式 */}
-              <div className="firewall-status mode">
-                <span>
-                  {firewallMode === 'blacklist' ? '黑名单模式' : firewallMode === 'whitelist' ? '白名单模式' : '未知模式'}
-                </span>
-              </div>
-              
-              {/* 分隔线 */}
-              <div style={{ width: '1px', height: '20px', background: 'rgba(127, 176, 105, 0.2)' }} />
-              
-              {/* 防火墙启停控制 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '13px', color: '#6B7A6B' }}>启停:</span>
-                <Switch
-                  checked={firewallStatus.is_running}
-                  onChange={handleFirewallToggle}
-                  checkedChildren="运行"
-                  unCheckedChildren="停止"
-                  size="small"
-                  style={{ minWidth: '50px' }}
-                />
-              </div>
-              
-              {/* 分隔线 */}
-              <div style={{ width: '1px', height: '20px', background: 'rgba(127, 176, 105, 0.2)' }} />
-              
-              {/* 模式切换控制 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '13px', color: '#6B7A6B' }}>模式:</span>
-                <Switch
-                  checked={firewallMode === 'whitelist'}
-                  onChange={handleModeSwitch}
-                  checkedChildren="白名单"
-                  unCheckedChildren="黑名单"
-                  size="small"
-                  loading={modeSwitchLoading}
-                  style={{ minWidth: '60px' }}
-                />
-              </div>
-            </div>
+                         {/* 防火墙控制区域 - 透明化设计 */}
+             <div style={{
+               display: 'flex',
+               alignItems: 'center',
+               gap: '16px',
+               padding: '8px 16px',
+               background: 'transparent'
+             }}>
+               {/* 防火墙状态 */}
+               <div style={{
+                 display: 'flex',
+                 alignItems: 'center',
+                 gap: '6px',
+                 padding: '4px 8px',
+                 borderRadius: '6px',
+                 background: firewallStatus.is_running ? 'rgba(40, 167, 69, 0.1)' : 'rgba(220, 53, 69, 0.1)',
+                 border: `1px solid ${firewallStatus.is_running ? 'rgba(40, 167, 69, 0.3)' : 'rgba(220, 53, 69, 0.3)'}`,
+                 color: firewallStatus.is_running ? '#198754' : '#dc3545',
+                 fontSize: '12px',
+                 fontWeight: '500'
+               }}>
+                 {firewallStatus.is_running ? 
+                   <CheckCircleOutlined style={{ fontSize: '12px' }} /> : 
+                   <ExclamationCircleOutlined style={{ fontSize: '12px' }} />
+                 }
+                 <span>
+                   {firewallStatus.is_running ? '运行中' : '已停止'}
+                 </span>
+               </div>
+               
+               {/* 防火墙模式 */}
+               <div style={{
+                 padding: '4px 8px',
+                 borderRadius: '6px',
+                 background: 'rgba(13, 110, 253, 0.1)',
+                 border: '1px solid rgba(13, 110, 253, 0.3)',
+                 color: '#0d6efd',
+                 fontSize: '12px',
+                 fontWeight: '500'
+               }}>
+                 {firewallMode === 'blacklist' ? '黑名单模式' : firewallMode === 'whitelist' ? '白名单模式' : '未知模式'}
+               </div>
+               
+               {/* 防火墙启停控制 */}
+               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                 <span style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500' }}>启停</span>
+                 <Switch
+                   checked={firewallStatus.is_running}
+                   onChange={handleFirewallToggle}
+                   checkedChildren="开"
+                   unCheckedChildren="关"
+                   size="small"
+                   style={{ 
+                     minWidth: '40px',
+                     height: '18px'
+                   }}
+                 />
+               </div>
+               
+               {/* 模式切换控制 */}
+               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                 <span style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500' }}>模式</span>
+                 <Switch
+                   checked={firewallMode === 'whitelist'}
+                   onChange={handleModeSwitch}
+                   checkedChildren="白"
+                   unCheckedChildren="黑"
+                   size="small"
+                   loading={modeSwitchLoading}
+                   style={{ 
+                     minWidth: '40px',
+                     height: '18px'
+                   }}
+                 />
+               </div>
+             </div>
             
             <Dropdown overlay={userMenu} placement="bottomRight">
               <Button type="text" icon={<UserOutlined />} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
