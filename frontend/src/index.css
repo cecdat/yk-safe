@@ -550,3 +550,40 @@ code {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* Modal和弹出层样式修复 */
+.ant-modal,
+.ant-modal-content,
+.ant-modal-header,
+.ant-modal-body,
+.ant-modal-footer {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+.ant-modal-mask {
+  background-color: rgba(0, 0, 0, 0.45) !important;
+}
+
+.ant-dropdown-menu,
+.ant-dropdown-menu-item {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+.ant-select-dropdown,
+.ant-select-item {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+.ant-tooltip-inner {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+.ant-message-notice-content {
+  background: #ffffff !important;
+  color: #000000 !important;
+  box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
+}

@@ -601,6 +601,11 @@ def update_firewall_mode(mode_update: FirewallModeUpdate, db: Session = Depends(
     config.description = mode_update.description
     config.updated_by = "admin"  # 这里可以从JWT token中获取用户信息
     
+    # 模式切换时转换现有规则
+    if old_mode != mode_update.mode:
+        print(f"[DEBUG] 模式切换检测到，开始转换现有规则: {old_mode} -> {mode_update.mode}")
+        convert_rules_for_mode_switch(db, old_mode, mode_update.mode)
+    
     db.commit()
     db.refresh(config)
     
@@ -648,3 +653,33 @@ def update_firewall_mode(mode_update: FirewallModeUpdate, db: Session = Depends(
             "updated_by": config.updated_by
         }
     )
+
+def convert_rules_for_mode_switch(db: Session, old_mode: str, new_mode: str):
+    """模式切换时转换现有规则"""
+    try:
+        # 获取所有活跃的防火墙规则
+        rules = db.query(FirewallRule).filter(FirewallRule.is_active == True).all()
+        
+        print(f"[DEBUG] 找到 {len(rules)} 个活跃规则需要转换")
+        
+        for rule in rules:
+            if old_mode == "blacklist" and new_mode == "whitelist":
+                # 从黑名单切换到白名单：所有规则都应该变成允许
+                if rule.action != "accept":
+                    print(f"[DEBUG] 转换规则 {rule.rule_name}: {rule.action} -> accept")
+                    rule.action = "accept"
+                    rule.description = f"{rule.description} (模式切换自动转换)"
+            elif old_mode == "whitelist" and new_mode == "blacklist":
+                # 从白名单切换到黑名单：所有规则都应该变成拒绝
+                if rule.action != "drop":
+                    print(f"[DEBUG] 转换规则 {rule.rule_name}: {rule.action} -> drop")
+                    rule.action = "drop"
+                    rule.description = f"{rule.description} (模式切换自动转换)"
+        
+        db.commit()
+        print(f"[DEBUG] 规则转换完成")
+        
+    except Exception as e:
+        print(f"[ERROR] 规则转换失败: {e}")
+        db.rollback()
+        raise e

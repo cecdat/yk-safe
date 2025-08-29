@@ -40,6 +40,12 @@ const NetworkTools = () => {
   const [output, setOutput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [currentTask, setCurrentTask] = useState(null);
+  
+  // 新增：用于稳定存储命令执行结果的状态
+  const [commandResults, setCommandResults] = useState({
+    ping: { output: '', taskId: null, isCompleted: false },
+    traceroute: { output: '', taskId: null, isCompleted: false }
+  });
 
   // 获取网卡列表
   const [interfaces, setInterfaces] = useState([]);
@@ -48,20 +54,19 @@ const NetworkTools = () => {
     fetchInterfaces();
     fetchCaptureHistory();
     
-    // 页面刷新或组件卸载时清理状态
+    // 页面刷新时清理状态，但保留已完成的命令结果
     const handleBeforeUnload = () => {
-      setOutput('');
       setIsRunning(false);
       setIsCapturing(false);
       setCurrentTask(null);
+      // 不清空output，保留命令执行结果
     };
     
     window.addEventListener('beforeunload', handleBeforeUnload);
     
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      // 组件卸载时清理状态
-      setOutput('');
+      // 组件卸载时只清理运行状态，保留结果
       setIsRunning(false);
       setIsCapturing(false);
       setCurrentTask(null);
@@ -101,12 +106,33 @@ const NetworkTools = () => {
     }
   };
 
+  // 新增：确保输出状态一致性的辅助函数
+  const ensureOutputConsistency = () => {
+    if (activeTool === 'ping' && commandResults.ping.output) {
+      setOutput(commandResults.ping.output);
+    } else if (activeTool === 'traceroute' && commandResults.traceroute.output) {
+      setOutput(commandResults.traceroute.output);
+    }
+  };
+
+  // 在组件挂载和工具切换时确保输出一致性
+  useEffect(() => {
+    ensureOutputConsistency();
+  }, [activeTool, commandResults]);
+
   const handleToolChange = (value) => {
     setActiveTool(value);
-    // 只有在切换到抓包工具时才清空输出
+    
+    // 根据工具类型设置对应的输出
     if (value === 'tcpdump') {
       setOutput('');
+    } else if (value === 'ping') {
+      setOutput(commandResults.ping.output || '');
+    } else if (value === 'traceroute') {
+      setOutput(commandResults.traceroute.output || '');
     }
+    
+    // 重置运行状态，但不清空结果
     setIsRunning(false);
     setCurrentTask(null);
     form.resetFields();
@@ -259,6 +285,16 @@ const NetworkTools = () => {
         // 不清空输出，保留已执行的结果
         setOutput(prev => prev + '\n[命令已手动停止]\n');
         
+        // 保存当前输出到稳定状态
+        setCommandResults(prev => ({
+          ...prev,
+          [activeTool]: {
+            output: output + '\n[命令已手动停止]\n',
+            taskId: currentTask,
+            isCompleted: true
+          }
+        }));
+        
         // 强制停止轮询
         if (window.currentPollingInterval) {
           clearInterval(window.currentPollingInterval);
@@ -339,9 +375,16 @@ const NetworkTools = () => {
       return;
     }
 
-    // 开始新命令时清空之前的输出和状态
+    // 开始新命令时清空之前的输出，但保留状态
     setOutput('执行命令...\n');
     setCurrentTask(null);
+    
+    // 清空对应工具的历史结果
+    setCommandResults(prev => ({
+      ...prev,
+      [activeTool]: { output: '', taskId: null, isCompleted: false }
+    }));
+    
     startNewCommand(values);
   };
 
@@ -422,6 +465,16 @@ const NetworkTools = () => {
             setIsRunning(false);
             // 不清空currentTask，保持执行状态卡片显示
             clearInterval(interval);
+            
+            // 保存命令执行结果到稳定状态
+            setCommandResults(prev => ({
+              ...prev,
+              [activeTool]: {
+                output: status.output || '',
+                taskId: taskId,
+                isCompleted: true
+              }
+            }));
             
             // 只在真正失败时显示错误，停止命令不算失败
             if (status.status === 'failed' && status.error_message && 

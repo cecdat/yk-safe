@@ -384,11 +384,8 @@ table inet filter {
             # 黑名单模式：所有规则都是阻止连接
             action = "drop"
         else:  # whitelist mode
-            # 白名单模式：根据规则动作决定
-            if rule.action == "accept":
-                action = "accept"
-            else:
-                action = "drop"
+            # 白名单模式：所有规则都应该是允许连接
+            action = "accept"
         
         if conditions:
             text += f"        {condition_str} {action}\n"
