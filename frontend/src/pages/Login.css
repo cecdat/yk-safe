@@ -8,15 +8,16 @@
   padding: 20px;
   position: relative;
   overflow: hidden;
+  background: #f0f2f5; /* 添加默认背景色 */
 }
 
 /* 背景图容器 */
 .background-container {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   z-index: -2;
 }
 
@@ -26,6 +27,7 @@
   object-fit: cover;
   transition: opacity 1s ease-in-out;
   opacity: 0;
+  display: block;
 }
 
 #bing-wallpaper[src] {
@@ -34,11 +36,11 @@
 
 /* 背景模糊遮罩 */
 .background-overlay {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   background: rgba(0, 0, 0, 0.4);
   z-index: -1;
 }
@@ -64,6 +66,8 @@
   padding: 30px !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
   transition: transform 0.3s ease;
+  position: relative;
+  z-index: 10;
 }
 
 .login-card:hover {
@@ -98,6 +102,23 @@
 .login-form .ant-form-item-label > label {
   color: rgba(255, 255, 255, 0.9) !important;
   font-weight: 500 !important;
+  text-align: left !important;
+  display: block !important;
+  margin-bottom: 8px !important;
+}
+
+.login-form .ant-form-item {
+  margin-bottom: 20px;
+}
+
+.login-form .ant-form-item:last-child {
+  margin-bottom: 0;
+}
+
+/* 标签样式优化 */
+.login-form .ant-form-item-label {
+  padding-bottom: 8px;
+  line-height: 1.5;
 }
 
 .form-control {
@@ -106,6 +127,7 @@
   color: white !important;
   height: 50px !important;
   border-radius: 8px !important;
+  width: 100% !important;
 }
 
 .form-control .ant-input {

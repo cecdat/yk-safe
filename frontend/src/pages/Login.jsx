@@ -19,10 +19,15 @@ const Login = () => {
       const wallpaperData = await getWallpaperInfo();
       setWallpaperUrl(wallpaperData.url);
       setWallpaperInfo(wallpaperData);
+      // 设置加载完成状态
+      setWallpaperLoaded(true);
+      setLoading(false);
     } catch (error) {
       console.error('获取Bing壁纸失败:', error);
       // 加载失败时使用备用图片
       setWallpaperUrl('https://picsum.photos/id/1059/1920/1080');
+      setWallpaperLoaded(true);
+      setLoading(false);
     }
   };
 
