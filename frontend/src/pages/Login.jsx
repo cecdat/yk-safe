@@ -11,7 +11,7 @@ const Login = () => {
   const [wallpaperLoading, setWallpaperLoading] = useState(true);
   const [wallpaperInfo, setWallpaperInfo] = useState({
     url: null,
-    title: 'YK-Safe 防火墙管理系统',
+    title: '封神云防护系统',
     copyright: 'YK-Safe',
     copyrightLink: '#'
   });
@@ -29,7 +29,7 @@ const Login = () => {
         // 使用默认信息
         setWallpaperInfo({
           url: null,
-          title: 'YK-Safe 防火墙管理系统',
+          title: '封神云防护系统',
           copyright: 'YK-Safe',
           copyrightLink: '#'
         });
@@ -99,14 +99,16 @@ const Login = () => {
       <Card className="login-card">
         <div className="login-header">
           <h2 style={{ 
-            color: '#111827', 
-            marginBottom: '8px'
+            color: '#ffffff', 
+            marginBottom: '8px',
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
           }}>
             {wallpaperInfo.title}
           </h2>
           <p style={{ 
-            color: '#6B7281',
-            margin: 0
+            color: 'rgba(255, 255, 255, 0.9)',
+            margin: 0,
+            textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
           }}>
             安全防护，智能管理
           </p>
