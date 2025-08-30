@@ -106,28 +106,3 @@ export const getFirewallConfig = () => {
 export const updateFirewallMode = (mode, description) => {
   return api.put('/firewall/config/mode', { mode, description });
 };
-
-// 系统监控相关API
-export const getSystemInfo = () => {
-  return api.get('/monitor/system');
-};
-
-export const getNetworkInfo = () => {
-  return api.get('/monitor/network');
-};
-
-export const getProcessInfo = () => {
-  return api.get('/monitor/processes');
-};
-
-export const getNetworkConnections = () => {
-  return api.get('/monitor/connections');
-};
-
-export const getIpConnectionDetails = (ip) => {
-  return api.get(`/monitor/connections/${ip}`);
-};
-
-export const getContainerInfo = () => {
-  return api.get('/monitor/containers');
-};

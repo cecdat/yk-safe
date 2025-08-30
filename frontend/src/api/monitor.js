@@ -47,8 +47,8 @@ export const getProcessInfo = () => {
   return api.get('/monitor/processes');
 };
 
-export const getFirewallStatus = () => {
-  return api.get('/monitor/firewall-status');
+export const getContainerInfo = () => {
+  return api.get('/monitor/containers');
 };
 
 // 网络连接相关API
@@ -58,4 +58,28 @@ export const getNetworkConnections = () => {
 
 export const getIpConnectionDetails = (ip) => {
   return api.get(`/monitor/connections/${ip}`);
+};
+
+// 防火墙状态相关API（监控视角）
+export const getFirewallStatus = () => {
+  return api.get('/firewall/status');
+};
+
+export const getFirewallConfig = () => {
+  return api.get('/firewall/config');
+};
+
+// 仪表盘综合数据API - 推荐使用，性能更好
+export const getDashboardData = () => {
+  return api.get('/monitor/dashboard');
+};
+
+// 实时监控数据API
+export const getRealTimeStats = () => {
+  return api.get('/monitor/realtime');
+};
+
+// 历史监控数据API
+export const getHistoricalStats = (hours = 24) => {
+  return api.get('/monitor/historical', { params: { hours } });
 };

@@ -11,7 +11,14 @@ import {
   DatabaseOutlined,
   WarningOutlined
 } from '@ant-design/icons';
-import { getFirewallStatus, getSystemInfo, getProcessInfo, getContainerInfo } from '../api/firewall';
+import { 
+  getDashboardData,
+  getFirewallStatus, 
+  getFirewallConfig,
+  getSystemInfo, 
+  getProcessInfo, 
+  getContainerInfo 
+} from '../api/monitor';
 import { ensureObject } from '../utils/dataUtils';
 
 // 格式化字节大小
@@ -50,34 +57,67 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const [firewallRes, firewallConfigRes, systemRes, processRes, containerRes] = await Promise.all([
-        getFirewallStatus(),
-        fetch('/api/firewall/config').then(res => res.json()),
-        getSystemInfo(),
-        getProcessInfo(),
-        getContainerInfo()
-      ]);
+      // 优先使用综合仪表盘 API，性能更好
+      const dashboardRes = await getDashboardData();
+      
+      if (dashboardRes.data && dashboardRes.data.code === 0) {
+        const dashboardData = dashboardRes.data.data;
+        
+        // 同时获取防火墙配置信息
+        const firewallConfigRes = await getFirewallConfig();
+        
+        setStats({
+          firewallStatus: ensureObject(dashboardData.firewall_status, { is_running: false, rules_count: 0 }),
+          firewallConfig: ensureObject(firewallConfigRes.data, { mode: 'blacklist', description: '' }),
+          systemInfo: ensureObject(dashboardData.system_info, {
+            cpu: { percent: 0, count: 0 },
+            memory: { total: 0, used: 0, percent: 0 },
+            disk: { total: 0, used: 0, percent: 0 },
+            load: { load_1min: 0, load_5min: 0, load_15min: 0, load_per_cpu: 0 },
+            disk_partitions: []
+          }),
+          processInfo: ensureObject(dashboardData.process_info, {
+            total_processes: 0,
+            top_cpu_processes: [],
+            top_memory_processes: []
+          }),
+          containerInfo: ensureObject(dashboardData.container_info, {
+            containers: [],
+            total_containers: 0
+          })
+        });
+      } else {
+        // 如果综合 API 失败，回退到原来的多个 API 调用
+        console.warn('综合仪表盘 API 失败，回退到多个 API 调用');
+        const [firewallRes, firewallConfigRes, systemRes, processRes, containerRes] = await Promise.all([
+          getFirewallStatus(),
+          getFirewallConfig(),
+          getSystemInfo(),
+          getProcessInfo(),
+          getContainerInfo()
+        ]);
 
-      setStats({
-        firewallStatus: ensureObject(firewallRes.data, { is_running: false, rules_count: 0 }),
-        firewallConfig: ensureObject(firewallConfigRes.data, { mode: 'blacklist', description: '' }),
-        systemInfo: ensureObject(systemRes.data, {
-          cpu: { percent: 0, count: 0 },
-          memory: { total: 0, used: 0, percent: 0 },
-          disk: { total: 0, used: 0, percent: 0 },
-          load: { load_1min: 0, load_5min: 0, load_15min: 0, load_per_cpu: 0 },
-          disk_partitions: []
-        }),
-        processInfo: ensureObject(processRes.data, {
-          total_processes: 0,
-          top_cpu_processes: [],
-          top_memory_processes: []
-        }),
-        containerInfo: ensureObject(containerRes.data, {
-          containers: [],
-          total_containers: 0
-        })
-      });
+        setStats({
+          firewallStatus: ensureObject(firewallRes.data, { is_running: false, rules_count: 0 }),
+          firewallConfig: ensureObject(firewallConfigRes.data, { mode: 'blacklist', description: '' }),
+          systemInfo: ensureObject(systemRes.data, {
+            cpu: { percent: 0, count: 0 },
+            memory: { total: 0, used: 0, percent: 0 },
+            disk: { total: 0, used: 0, percent: 0 },
+            load: { load_1min: 0, load_5min: 0, load_15min: 0, load_per_cpu: 0 },
+            disk_partitions: []
+          }),
+          processInfo: ensureObject(processRes.data, {
+            total_processes: 0,
+            top_cpu_processes: [],
+            top_memory_processes: []
+          }),
+          containerInfo: ensureObject(containerRes.data, {
+            containers: [],
+            total_containers: 0
+          })
+        });
+      }
     } catch (error) {
       message.error('获取仪表盘数据失败');
       console.error('Dashboard data fetch error:', error);

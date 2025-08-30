@@ -13,6 +13,164 @@ from app.utils.geo_utils import get_ip_location_simple, get_ip_location_summary
 
 router = APIRouter()
 
+@router.get("/dashboard", response_model=ResponseModel)
+def get_dashboard_data():
+    """获取仪表盘综合数据 - 一次性返回所有监控信息"""
+    try:
+        # 系统信息
+        cpu_percent = psutil.cpu_percent(interval=1)
+        cpu_count = psutil.cpu_count()
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        
+        # 系统负载
+        try:
+            load_avg = psutil.getloadavg()
+            load_info = {
+                "load_1min": round(load_avg[0], 2),
+                "load_5min": round(load_avg[1], 2),
+                "load_15min": round(load_avg[2], 2),
+                "load_per_cpu": round(load_avg[0] / cpu_count, 2) if cpu_count > 0 else 0
+            }
+        except Exception:
+            load_info = {
+                "load_1min": 0,
+                "load_5min": 0,
+                "load_15min": 0,
+                "load_per_cpu": 0
+            }
+        
+        # 磁盘分区信息
+        try:
+            disk_partitions = []
+            for partition in psutil.disk_partitions():
+                try:
+                    usage = psutil.disk_usage(partition.mountpoint)
+                    disk_partitions.append({
+                        "device": partition.device,
+                        "mountpoint": partition.mountpoint,
+                        "fstype": partition.fstype,
+                        "total": usage.total,
+                        "used": usage.used,
+                        "free": usage.free,
+                        "percent": usage.percent
+                    })
+                except (PermissionError, FileNotFoundError):
+                    continue
+        except Exception:
+            disk_partitions = []
+        
+        # 进程信息
+        try:
+            processes = []
+            for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+                try:
+                    processes.append({
+                        "pid": proc.info['pid'],
+                        "name": proc.info['name'],
+                        "cpu_percent": proc.info['cpu_percent'],
+                        "memory_percent": proc.info['memory_percent']
+                    })
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            
+            # 按CPU和内存使用率排序
+            top_cpu_processes = sorted(processes, key=lambda x: x['cpu_percent'], reverse=True)[:10]
+            top_memory_processes = sorted(processes, key=lambda x: x['memory_percent'], reverse=True)[:10]
+            
+            process_info = {
+                "total_processes": len(processes),
+                "top_cpu_processes": top_cpu_processes,
+                "top_memory_processes": top_memory_processes
+            }
+        except Exception:
+            process_info = {
+                "total_processes": 0,
+                "top_cpu_processes": [],
+                "top_memory_processes": []
+            }
+        
+        # 容器信息
+        try:
+            client = docker.from_env()
+            containers = []
+            for container in client.containers.list():
+                containers.append({
+                    "id": container.id,
+                    "name": container.name,
+                    "image": container.image.tags[0] if container.image.tags else container.image.id,
+                    "status": container.status,
+                    "ports": container.ports
+                })
+            
+            container_info = {
+                "containers": containers,
+                "total_containers": len(containers)
+            }
+        except (DockerException, Exception):
+            container_info = {
+                "containers": [],
+                "total_containers": 0
+            }
+        
+        # 防火墙状态（简化版）
+        try:
+            # 检查nftables服务状态
+            result = subprocess.run(['systemctl', 'is-active', 'nftables'], 
+                                  capture_output=True, text=True, timeout=5)
+            firewall_running = result.returncode == 0 and result.stdout.strip() == 'active'
+        except Exception:
+            firewall_running = False
+        
+        # 网络连接数
+        try:
+            connections = psutil.net_connections()
+            network_connections = len(connections)
+        except (psutil.AccessDenied, psutil.ZombieProcess):
+            network_connections = 0
+        
+        dashboard_data = {
+            "system_info": {
+                "cpu": {
+                    "percent": cpu_percent,
+                    "count": cpu_count
+                },
+                "memory": {
+                    "total": memory.total,
+                    "used": memory.used,
+                    "free": memory.free,
+                    "percent": memory.percent
+                },
+                "disk": {
+                    "total": disk.total,
+                    "used": disk.used,
+                    "free": disk.free,
+                    "percent": disk.percent
+                },
+                "load": load_info,
+                "disk_partitions": disk_partitions,
+                "network_connections": network_connections
+            },
+            "process_info": process_info,
+            "container_info": container_info,
+            "firewall_status": {
+                "is_running": firewall_running
+            }
+        }
+        
+        return ResponseModel(
+            code=0,
+            message="获取仪表盘数据成功",
+            data=dashboard_data
+        )
+        
+    except Exception as e:
+        return ResponseModel(
+            code=5000,
+            message=f"获取仪表盘数据失败: {str(e)}",
+            data={}
+        )
+
 @router.get("/system", response_model=ResponseModel)
 def get_system_info():
     """获取系统信息"""
@@ -67,49 +225,52 @@ def get_system_info():
                         "total": usage.total,
                         "used": usage.used,
                         "free": usage.free,
-                        "percent": round((usage.used / usage.total) * 100, 2) if usage.total > 0 else 0
+                        "percent": usage.percent
                     })
                 except (PermissionError, FileNotFoundError):
-                    # 跳过无法访问的分区
                     continue
         except Exception:
             disk_partitions = []
         
+        system_info = {
+            "cpu": {
+                "percent": cpu_percent,
+                "count": cpu_count
+            },
+            "memory": {
+                "total": memory.total,
+                "used": memory.used,
+                "free": memory.free,
+                "percent": memory.percent
+            },
+            "disk": {
+                "total": disk.total,
+                "used": disk.used,
+                "free": disk.free,
+                "percent": disk.percent
+            },
+            "network": {
+                "bytes_sent": network.bytes_sent,
+                "bytes_recv": network.bytes_recv,
+                "packets_sent": network.packets_sent,
+                "packets_recv": network.packets_recv,
+                "connections": network_connections
+            },
+            "load": load_info,
+            "disk_partitions": disk_partitions
+        }
+        
         return ResponseModel(
             code=0,
             message="获取系统信息成功",
-            data={
-                "cpu": {
-                    "percent": cpu_percent,
-                    "count": cpu_count
-                },
-                "memory": {
-                    "total": memory.total,
-                    "available": memory.available,
-                    "percent": memory.percent,
-                    "used": memory.used
-                },
-                "disk": {
-                    "total": disk.total,
-                    "used": disk.used,
-                    "free": disk.free,
-                    "percent": (disk.used / disk.total) * 100
-                },
-                "network": {
-                    "bytes_sent": network.bytes_sent,
-                    "bytes_recv": network.bytes_recv,
-                    "packets_sent": network.packets_sent,
-                    "packets_recv": network.packets_recv,
-                    "connections": network_connections
-                },
-                "load": load_info,
-                "disk_partitions": disk_partitions
-            }
+            data=system_info
         )
+        
     except Exception as e:
         return ResponseModel(
             code=5000,
-            message=f"获取系统信息失败: {str(e)}"
+            message=f"获取系统信息失败: {str(e)}",
+            data={}
         )
 
 @router.get("/network", response_model=ResponseModel)
