@@ -351,22 +351,34 @@ const Dashboard = () => {
       dataIndex: 'cpu_percent',
       key: 'cpu_percent',
       width: 100,
-      render: (value) => (
-        <span style={{ color: parseFloat(value) > 80 ? '#ff4d4f' : '#52c41a' }}>
-          {parseFloat(value).toFixed(2)}%
-        </span>
-      ),
+      render: (value) => {
+        if (!value || value === 'N/A' || value === '0.00') {
+          return <span style={{ color: '#999' }}>N/A</span>;
+        }
+        const numValue = parseFloat(value);
+        return (
+          <span style={{ color: numValue > 80 ? '#ff4d4f' : '#52c41a' }}>
+            {numValue.toFixed(2)}%
+          </span>
+        );
+      },
     },
     {
       title: '内存使用率',
       dataIndex: 'memory_percent',
       key: 'memory_percent',
       width: 100,
-      render: (value) => (
-        <span style={{ color: parseFloat(value) > 80 ? '#ff4d4f' : '#52c41a' }}>
-          {parseFloat(value).toFixed(2)}%
-        </span>
-      ),
+      render: (value) => {
+        if (!value || value === 'N/A' || value === '0') {
+          return <span style={{ color: '#999' }}>N/A</span>;
+        }
+        const numValue = parseFloat(value);
+        return (
+          <span style={{ color: numValue > 80 ? '#ff4d4f' : '#52c41a' }}>
+            {numValue.toFixed(2)}%
+          </span>
+        );
+      },
     },
     {
       title: '创建时间',
@@ -376,8 +388,13 @@ const Dashboard = () => {
       render: (created) => {
         if (!created || created === 'N/A') return <span style={{ color: '#999' }}>N/A</span>;
         try {
-          const date = new Date(created);
-          return <span style={{ fontSize: '11px' }}>{date.toLocaleDateString()}</span>;
+          // 处理ISO格式时间字符串
+          if (typeof created === 'string' && created.includes('T')) {
+            const date = new Date(created);
+            return <span style={{ fontSize: '11px' }}>{date.toLocaleDateString()}</span>;
+          }
+          // 处理其他格式
+          return <span style={{ fontSize: '11px' }}>{created}</span>;
         } catch {
           return <span style={{ color: '#999' }}>格式错误</span>;
         }
@@ -402,7 +419,8 @@ const Dashboard = () => {
       </div>
 
       <Row gutter={[16, 16]}>
-        <Col span={6}>
+        {/* 第一行：防火墙状态、防护规则、CPU使用率、内存使用率、系统负载、网络连接数 */}
+        <Col span={4}>
           <Card className="hover-lift" size="small">
             <Statistic
               title="防火墙状态"
@@ -419,7 +437,7 @@ const Dashboard = () => {
             </div>
           </Card>
         </Col>
-        <Col span={6}>
+        <Col span={4}>
           <Card className="hover-lift" size="small">
             <Statistic
               title="防护规则"
@@ -432,22 +450,22 @@ const Dashboard = () => {
             </div>
           </Card>
         </Col>
-                 <Col span={6}>
-           <Card className="hover-lift">
-             <Statistic
-               title="CPU使用率"
-               value={stats.systemInfo.cpu.percent}
-               precision={2}
-               suffix="%"
-               valueStyle={{ color: stats.systemInfo.cpu.percent > 80 ? '#ff4d4f' : '#52c41a' }}
-               prefix={<DesktopOutlined />}
-             />
-             <div style={{ marginTop: 8, fontSize: 12, color: '#6B7A6B' }}>
-               核心数: {stats.systemInfo.cpu.count || 'N/A'}
-             </div>
-           </Card>
-         </Col>
-         <Col span={6}>
+        <Col span={4}>
+          <Card className="hover-lift">
+            <Statistic
+              title="CPU使用率"
+              value={stats.systemInfo.cpu.percent}
+              precision={2}
+              suffix="%"
+              valueStyle={{ color: stats.systemInfo.cpu.percent > 80 ? '#ff4d4f' : '#52c41a' }}
+              prefix={<DesktopOutlined />}
+            />
+            <div style={{ marginTop: 8, fontSize: 12, color: '#6B7A6B' }}>
+              核心数: {stats.systemInfo.cpu.count || 'N/A'}
+            </div>
+          </Card>
+        </Col>
+        <Col span={4}>
           <Card className="hover-lift">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
@@ -482,11 +500,7 @@ const Dashboard = () => {
             </div>
           </Card>
         </Col>
-      </Row>
-
-      {/* 系统负载和磁盘使用卡片 */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col span={6}>
+        <Col span={4}>
           <Card className="hover-lift">
             <Statistic
               title="系统负载"
@@ -503,104 +517,7 @@ const Dashboard = () => {
             </div>
           </Card>
         </Col>
-        
-        <Col span={12}>
-          <Card 
-            title={
-              <Space>
-                磁盘使用情况
-                {(() => {
-                  const diskPercent = stats.systemInfo.disk.percent;
-                  if (diskPercent > 95) {
-                    return <Badge color="red" text="磁盘空间不足" />;
-                  } else if (diskPercent > 80) {
-                    return <Badge color="orange" text="磁盘空间紧张" />;
-                  }
-                  return null;
-                })()}
-              </Space>
-            } 
-            size="small"
-            className="hover-lift system-load-card"
-          >
-            <Row gutter={16}>
-              <Col span={8}>
-                <Statistic
-                  title="总容量"
-                  value={formatBytes(stats.systemInfo.disk.total)}
-                  valueStyle={{ color: '#1890ff' }}
-                />
-              </Col>
-              <Col span={8}>
-                <Statistic
-                  title="已使用"
-                  value={formatBytes(stats.systemInfo.disk.used)}
-                  valueStyle={{ color: '#52c41a' }}
-                />
-              </Col>
-              <Col span={8}>
-                <Statistic
-                  title="使用率"
-                  value={stats.systemInfo.disk.percent}
-                  precision={1}
-                  suffix="%"
-                  valueStyle={{ 
-                    color: (() => {
-                      const percent = stats.systemInfo.disk.percent;
-                      if (percent > 95) return '#ff4d4f';
-                      if (percent > 80) return '#faad14';
-                      return '#52c41a';
-                    })()
-                  }}
-                />
-              </Col>
-            </Row>
-            <div style={{ marginTop: 16 }}>
-              <Progress 
-                percent={stats.systemInfo.disk.percent} 
-                size="small"
-                status={(() => {
-                  const percent = stats.systemInfo.disk.percent;
-                  if (percent > 95) return 'exception';
-                  if (percent > 80) return 'active';
-                  return 'normal';
-                })()}
-                format={() => null}
-              />
-            </div>
-            
-            {/* 多磁盘分区信息 */}
-            {stats.systemInfo.disk_partitions && stats.systemInfo.disk_partitions.length > 0 && (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>分区详情:</div>
-                {stats.systemInfo.disk_partitions.slice(0, 3).map((partition, index) => (
-                  <div key={index} style={{ fontSize: 11, marginBottom: 4 }}>
-                    <span style={{ color: '#666' }}>{partition.mountpoint}:</span>
-                    <span style={{ 
-                      color: partition.percent > 95 ? '#ff4d4f' : 
-                             partition.percent > 80 ? '#faad14' : '#52c41a' 
-                    }}>
-                      {parseFloat(partition.percent).toFixed(2)}%
-                    </span>
-                    <span style={{ color: '#999', marginLeft: 8 }}>
-                      ({formatBytes(partition.used)} / {formatBytes(partition.total)})
-                    </span>
-                  </div>
-                ))}
-                {stats.systemInfo.disk_partitions.length > 3 && (
-                  <div style={{ fontSize: 11, color: '#999' }}>
-                    还有 {stats.systemInfo.disk_partitions.length - 3} 个分区...
-                  </div>
-                )}
-              </div>
-            )}
-          </Card>
-        </Col>
-      </Row>
-
-      {/* 网络连接数和流量统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col span={6}>
+        <Col span={4}>
           <Card className="hover-lift network-connections-card">
             <Statistic
               title="网络连接数"
@@ -609,101 +526,61 @@ const Dashboard = () => {
               prefix={<DesktopOutlined />}
             />
             <div style={{ marginTop: 8, fontSize: '12px' }}>
-              <div style={{ marginBottom: 4 }}>
-                <span style={{ color: '#52c41a' }}>●</span> 已建立: {stats.networkInfo.connections.established}
-              </div>
-              <div style={{ marginBottom: 4 }}>
-                <span style={{ color: '#faad14' }}>●</span> 监听: {stats.networkInfo.connections.listening}
-              </div>
-              <div style={{ marginBottom: 4 }}>
-                <span style={{ color: '#722ed1' }}>●</span> 等待: {stats.networkInfo.connections.time_wait}
-              </div>
               {stats.networkInfo.connections.top_ips && stats.networkInfo.connections.top_ips.length > 0 && (
-                <div style={{ marginTop: 8, borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+                <div>
                   <div style={{ fontWeight: 'bold', marginBottom: 4 }}>TOP5 IP:</div>
-                  {stats.networkInfo.connections.top_ips.slice(0, 3).map((item, index) => (
+                  {stats.networkInfo.connections.top_ips.slice(0, 5).map((item, index) => (
                     <div key={index} style={{ fontSize: '11px', marginBottom: 2 }}>
-                      {item.ip}: {item.count}
+                      {item.ip} ({item.count})
                     </div>
                   ))}
-                  {stats.networkInfo.connections.top_ips.length > 3 && (
-                    <div style={{ fontSize: '11px', color: '#999' }}>
-                      +{stats.networkInfo.connections.top_ips.length - 3} 更多...
-                    </div>
-                  )}
                 </div>
               )}
             </div>
           </Card>
         </Col>
-        
+      </Row>
+
+      {/* 第二行：磁盘使用情况、网络流量统计 */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col span={12}>
-          <Card 
-            title={
-              <Space>
-                网络流量统计
-                {(() => {
-                  const errors = stats.networkInfo.traffic.errin + stats.networkInfo.traffic.errout;
-                  const drops = stats.networkInfo.traffic.dropin + stats.networkInfo.traffic.dropout;
-                  if (errors > 100 || drops > 50) {
-                    return <Badge color="red" text="网络异常" />;
-                  } else if (errors > 10 || drops > 5) {
-                    return <Badge color="orange" text="网络警告" />;
-                  }
-                  return null;
-                })()}
-              </Space>
-            } 
-            size="small"
-            className="hover-lift network-traffic-card"
-          >
-            <Row gutter={16}>
-              <Col span={12}>
-                <Statistic
-                  title="发送流量"
-                  value={formatBytes(stats.networkInfo.traffic.bytes_sent)}
-                  valueStyle={{ color: '#52c41a' }}
-                />
-              </Col>
-              <Col span={12}>
-                <Statistic
-                  title="接收流量"
-                  value={formatBytes(stats.networkInfo.traffic.bytes_recv)}
-                  valueStyle={{ color: '#1890ff' }}
-                />
-              </Col>
-            </Row>
-            <Row gutter={16} style={{ marginTop: 16 }}>
-              <Col span={8}>
-                <Statistic
-                  title="发送包数"
-                  value={stats.networkInfo.traffic.packets_sent}
-                  valueStyle={{ color: '#faad14' }}
-                />
-              </Col>
-              <Col span={8}>
-                <Statistic
-                  title="接收包数"
-                  value={stats.networkInfo.traffic.packets_recv}
-                  valueStyle={{ color: '#722ed1' }}
-                />
-              </Col>
-              <Col span={8}>
-                <Statistic
-                  title="错误/丢包"
-                  value={`${stats.networkInfo.traffic.errin + stats.networkInfo.traffic.errout}/${stats.networkInfo.traffic.dropin + stats.networkInfo.traffic.dropout}`}
-                  valueStyle={{ 
-                    color: (() => {
-                      const errors = stats.networkInfo.traffic.errin + stats.networkInfo.traffic.errout;
-                      const drops = stats.networkInfo.traffic.dropin + stats.networkInfo.traffic.dropout;
-                      if (errors > 100 || drops > 50) return '#ff4d4f';
-                      if (errors > 10 || drops > 5) return '#faad14';
-                      return '#52c41a';
-                    })()
-                  }}
-                />
-              </Col>
-            </Row>
+          <Card className="hover-lift">
+            <Statistic
+              title="磁盘使用情况"
+              value={stats.systemInfo.disk.percent}
+              precision={2}
+              suffix="%"
+              valueStyle={{ color: stats.systemInfo.disk.percent > 90 ? '#ff4d4f' : '#52c41a' }}
+              prefix={<HddOutlined />}
+            />
+            <div style={{ marginTop: 8, fontSize: '12px' }}>
+              <div>总容量: {formatBytes(stats.systemInfo.disk.total)}</div>
+              <div>已使用: {formatBytes(stats.systemInfo.disk.used)}</div>
+              <div>可用空间: {formatBytes(stats.systemInfo.disk.free)}</div>
+            </div>
+          </Card>
+        </Col>
+        <Col span={12}>
+          <Card className="hover-lift network-traffic-card">
+            <Statistic
+              title="网络流量统计"
+              value={formatBytes(stats.networkInfo.traffic.bytes_sent + stats.networkInfo.traffic.bytes_recv)}
+              valueStyle={{ color: '#1890ff' }}
+              prefix={<DesktopOutlined />}
+            />
+            <div style={{ marginTop: 8, fontSize: '12px' }}>
+              <div>发送: {formatBytes(stats.networkInfo.traffic.bytes_sent)}</div>
+              <div>接收: {formatBytes(stats.networkInfo.traffic.bytes_recv)}</div>
+              <div>发送包: {stats.networkInfo.traffic.packets_sent}</div>
+              <div>接收包: {stats.networkInfo.traffic.packets_recv}</div>
+              {(stats.networkInfo.traffic.errin > 0 || stats.networkInfo.traffic.errout > 0 || 
+                stats.networkInfo.traffic.dropin > 0 || stats.networkInfo.traffic.dropout > 0) && (
+                <div style={{ marginTop: 4 }}>
+                  <Badge color="red" text={`错误: ${stats.networkInfo.traffic.errin + stats.networkInfo.traffic.errout}`} />
+                  <Badge color="orange" text={`丢包: ${stats.networkInfo.traffic.dropin + stats.networkInfo.traffic.dropout}`} />
+                </div>
+              )}
+            </div>
           </Card>
         </Col>
       </Row>
@@ -761,7 +638,7 @@ const Dashboard = () => {
                         <summary style={{ cursor: 'pointer', color: '#1890ff' }}>查看调试信息</summary>
                         <div style={{ marginTop: '10px', textAlign: 'left', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
                           {stats.containerInfo.debug_info.map((info, index) => (
-                            <div key={index} style={{ marginBottom: '5px' }}>• {info}</div>
+                            <div key={index} style={{ marginBottom: '5px', fontFamily: 'monospace' }}>• {info}</div>
                           ))}
                         </div>
                       </details>
