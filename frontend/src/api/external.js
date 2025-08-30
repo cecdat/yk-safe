@@ -16,76 +16,65 @@ api.interceptors.response.use(
   }
 );
 
-// Bing 每日壁纸 API
+// external.js - 外部API服务
+
+// 获取Bing每日壁纸
 export const getBingWallpaper = async () => {
   try {
-    // 使用 CORS 代理来避免跨域问题
-    const corsProxy = 'https://api.allorigins.win/raw?url=';
-    const bingApiUrl = 'https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=en-US';
+    // 使用更稳定的Bing壁纸API
+    const response = await fetch('https://bing.biturl.top/?resolution=1920&format=json&index=0&mkt=zh-CN');
     
-    const response = await api.get(`${corsProxy}${encodeURIComponent(bingApiUrl)}`);
-    
-    if (response.data && response.data.images && response.data.images.length > 0) {
-      const image = response.data.images[0];
-      return {
-        url: `https://www.bing.com${image.url}`,
-        title: image.title || 'Bing Daily Wallpaper',
-        copyright: image.copyright || 'Microsoft Bing',
-        copyrightLink: image.copyrightlink || 'https://www.bing.com',
-        startDate: image.startdate,
-        endDate: image.enddate,
-        fullStartDate: image.fullstartdate
-      };
+    if (!response.ok) {
+      throw new Error('网络响应不正常');
     }
     
-    throw new Error('No wallpaper data available');
-  } catch (error) {
-    console.warn('Failed to fetch Bing wallpaper:', error);
-    throw error;
-  }
-};
-
-// 备用壁纸 API（如果 Bing API 失败）
-export const getFallbackWallpaper = async () => {
-  try {
-    // 使用 Unsplash 随机壁纸作为备用
-    const response = await api.get('https://source.unsplash.com/1920x1080/?nature,landscape');
-    
+    const data = await response.json();
     return {
-      url: response.request.responseURL,
-      title: 'Nature Landscape',
-      copyright: 'Unsplash',
-      copyrightLink: 'https://unsplash.com',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
-      fullStartDate: new Date().toISOString()
+      url: data.url,
+      title: data.title || '封神云防护系统',
+      copyright: data.copyright || 'Bing',
+      copyrightLink: data.copyrightlink || '#'
     };
   } catch (error) {
-    console.warn('Failed to fetch fallback wallpaper:', error);
+    console.error('获取Bing壁纸失败:', error);
     throw error;
   }
 };
 
-// 获取壁纸信息（主函数）
+// 获取备用壁纸
+export const getFallbackWallpaper = async () => {
+  try {
+    const response = await fetch('https://picsum.photos/id/1059/1920/1080');
+    return {
+      url: response.url,
+      title: '封神云防护系统',
+      copyright: 'Unsplash',
+      copyrightLink: 'https://unsplash.com'
+    };
+  } catch (error) {
+    console.error('获取备用壁纸失败:', error);
+    throw error;
+  }
+};
+
+// 获取壁纸信息（主要函数）
 export const getWallpaperInfo = async () => {
   try {
-    // 优先尝试 Bing 壁纸
+    // 优先尝试Bing壁纸
     return await getBingWallpaper();
   } catch (error) {
+    console.warn('Bing壁纸获取失败，使用备用壁纸:', error);
     try {
-      // 如果 Bing 失败，使用备用壁纸
+      // 备用方案：Unsplash随机壁纸
       return await getFallbackWallpaper();
     } catch (fallbackError) {
-      // 如果都失败，返回默认信息
-      console.warn('All wallpaper APIs failed, using default');
+      console.error('所有壁纸获取失败:', fallbackError);
+      // 最终备用：返回默认信息
       return {
         url: null,
-        title: 'Default Background',
+        title: '封神云防护系统',
         copyright: 'YK-Safe',
-        copyrightLink: '#',
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0],
-        fullStartDate: new Date().toISOString()
+        copyrightLink: '#'
       };
     }
   }

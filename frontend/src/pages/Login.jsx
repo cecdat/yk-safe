@@ -1,185 +1,140 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Card, message, Spin, Badge } from 'antd';
-import { UserOutlined, LockOutlined, LoadingOutlined, SafetyOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Card, Spin, message } from 'antd';
+import { UserOutlined, LockOutlined, SafetyOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { login } from '../api/auth';
 import { getWallpaperInfo } from '../api/external';
 import './Login.css';
 
 const Login = () => {
-  const [loading, setLoading] = useState(false);
-  const [wallpaperLoading, setWallpaperLoading] = useState(true);
-  const [wallpaperInfo, setWallpaperInfo] = useState({
-    url: null,
-    title: '封神云防护系统',
-    copyright: 'YK-Safe',
-    copyrightLink: '#'
-  });
+  const [loading, setLoading] = useState(true);
+  const [wallpaperUrl, setWallpaperUrl] = useState('');
+  const [wallpaperLoaded, setWallpaperLoaded] = useState(false);
+  const [wallpaperInfo, setWallpaperInfo] = useState({ title: '封神云防护系统' });
   const navigate = useNavigate();
 
-  // 获取壁纸信息
-  useEffect(() => {
-    const fetchWallpaper = async () => {
-      try {
-        setWallpaperLoading(true);
-        const info = await getWallpaperInfo();
-        // 确保标题始终是中文
-        setWallpaperInfo({
-          ...info,
-          title: '封神云防护系统'
-        });
-      } catch (error) {
-        console.warn('无法获取壁纸，使用默认背景');
-        // 使用默认信息
-        setWallpaperInfo({
-          url: null,
-          title: '封神云防护系统',
-          copyright: 'YK-Safe',
-          copyrightLink: '#'
-        });
-      } finally {
-        setWallpaperLoading(false);
-      }
-    };
+  // 获取Bing每日壁纸
+  const fetchBingWallpaper = async () => {
+    try {
+      const wallpaperData = await getWallpaperInfo();
+      setWallpaperUrl(wallpaperData.url);
+      setWallpaperInfo(wallpaperData);
+    } catch (error) {
+      console.error('获取Bing壁纸失败:', error);
+      // 加载失败时使用备用图片
+      setWallpaperUrl('https://picsum.photos/id/1059/1920/1080');
+    }
+  };
 
-    fetchWallpaper();
+  // 处理壁纸加载完成
+  const handleWallpaperLoad = () => {
+    setWallpaperLoaded(true);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchBingWallpaper();
   }, []);
 
   const onFinish = async (values) => {
-    setLoading(true);
     try {
-      const response = await axios.post('/api/auth/login', values);
-      if (response.data.code === 0) {
-        localStorage.setItem('token', response.data.data.access_token);
-        message.success('登录成功');
+      setLoading(true);
+      const response = await login(values.username, values.password);
+      
+      if (response.data && response.data.code === 0) {
+        message.success('登录成功！');
+        // 存储token
+        localStorage.setItem('token', response.data.data.token);
+        localStorage.setItem('username', values.username);
+        // 跳转到仪表盘
         navigate('/dashboard');
       } else {
-        message.error(response.data.message || '登录失败');
+        message.error(response.data?.message || '登录失败');
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('登录错误:', error);
       message.error('登录失败，请检查用户名和密码');
     } finally {
       setLoading(false);
     }
   };
 
-  // 背景样式
-  const backgroundStyle = {
-    background: wallpaperInfo.url 
-      ? `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(${wallpaperInfo.url})`
-      : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundRepeat: 'no-repeat'
-  };
-
   return (
-    <div className="login-container" style={backgroundStyle}>
-      {/* 壁纸加载动画 */}
-      {wallpaperLoading && (
-        <div className="wallpaper-loading-spinner">
-          <Spin 
-            indicator={<LoadingOutlined style={{ fontSize: 24, color: '#ffffff' }} spin />}
-            tip="正在加载背景..."
-          />
+    <div className="login-container">
+      {/* 加载指示器 */}
+      <Spin 
+        spinning={loading} 
+        tip="加载中..."
+        className="login-spin"
+      >
+        {/* 背景图容器 */}
+        <div className="background-container">
+          {wallpaperUrl && (
+            <img 
+              id="bing-wallpaper" 
+              alt="Bing每日壁纸" 
+              src={wallpaperUrl}
+              onLoad={handleWallpaperLoad}
+              style={{ opacity: wallpaperLoaded ? 1 : 0 }}
+            />
+          )}
         </div>
-      )}
-
-      {/* 版权信息 */}
-      {!wallpaperLoading && wallpaperInfo.copyright && (
-        <div className="wallpaper-copyright">
-          <a 
-            href={wallpaperInfo.copyrightLink} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            style={{ color: 'inherit', textDecoration: 'none' }}
-          >
-            © {wallpaperInfo.copyright}
-          </a>
-        </div>
-      )}
-
-      <Card className="login-card">
-        <div className="login-header">
-          <h2 style={{ 
-            color: '#ffffff', 
-            marginBottom: '8px',
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
-          }}>
-            封神云防护系统
-          </h2>
-          <p style={{ 
-            color: 'rgba(255, 255, 255, 0.9)',
-            margin: 0,
-            textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
-          }}>
-            安全防护，智能管理
-          </p>
-        </div>
-
-        <Form
-          name="login"
-          onFinish={onFinish}
-          autoComplete="off"
-          size="large"
+        <div className="background-overlay"></div>
+        
+        {/* 登录卡片 */}
+        <Card 
+          className="login-card"
+          bordered={false}
         >
-          <Form.Item
-            name="username"
-            rules={[{ required: true, message: '请输入用户名!' }]}
+          <div className="login-header">
+            <h1>{wallpaperInfo.title}</h1>
+            <p>安全登录，智能防护</p>
+          </div>
+          
+          <Form
+            name="login"
+            onFinish={onFinish}
+            className="login-form"
+            size="large"
           >
-            <Input 
-              prefix={<UserOutlined className="login-icon" />} 
-              placeholder="用户名" 
-              className="login-input"
-              style={{
-                height: '48px',
-                borderRadius: '12px',
-                fontSize: '16px'
-              }}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="password"
-            rules={[{ required: true, message: '请输入密码!' }]}
-          >
-            <Input.Password 
-              prefix={<LockOutlined className="login-icon" />} 
-              placeholder="密码" 
-              className="login-input"
-              style={{
-                height: '48px',
-                borderRadius: '12px',
-                fontSize: '16px'
-              }}
-            />
-          </Form.Item>
-
-          <Form.Item style={{ marginBottom: '0' }}>
-            <Badge.Ribbon text="安全登录" color="green">
+            <Form.Item
+              name="username"
+              label="用户名"
+              rules={[{ required: true, message: '请输入用户名' }]}
+            >
+              <Input
+                placeholder="请输入用户名"
+                prefix={<UserOutlined />}
+                className="form-control"
+              />
+            </Form.Item>
+            
+            <Form.Item
+              name="password"
+              label="密码"
+              rules={[{ required: true, message: '请输入密码' }]}
+            >
+              <Input.Password
+                placeholder="请输入密码"
+                prefix={<LockOutlined />}
+                className="form-control"
+              />
+            </Form.Item>
+            
+            <Form.Item>
               <Button 
                 type="primary" 
-                htmlType="submit" 
-                loading={loading}
-                className="login-button"
-                style={{ 
-                  width: '100%',
-                  height: '48px',
-                  borderRadius: '12px',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  background: '#52c41a',
-                  borderColor: '#52c41a'
-                }}
+                htmlType="submit"
+                className="btn-login"
                 icon={<SafetyOutlined />}
+                loading={loading}
               >
                 登录
               </Button>
-            </Badge.Ribbon>
-          </Form.Item>
-        </Form>
-      </Card>
+            </Form.Item>
+          </Form>
+        </Card>
+      </Spin>
     </div>
   );
 };
