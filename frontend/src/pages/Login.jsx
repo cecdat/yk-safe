@@ -43,8 +43,8 @@ const Login = () => {
       
       if (response.data && response.data.code === 0) {
         message.success('登录成功！');
-        // 存储token
-        localStorage.setItem('token', response.data.data.token);
+        // 存储token - 使用后端返回的access_token字段
+        localStorage.setItem('token', response.data.data.access_token);
         localStorage.setItem('username', values.username);
         // 跳转到仪表盘
         navigate('/dashboard');
