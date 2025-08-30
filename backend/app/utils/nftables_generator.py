@@ -601,7 +601,7 @@ table inet filter {
             # 获取当前链中的规则数量，找到drop规则的位置
             drop_position = self._get_drop_rule_position()
             if drop_position > 0:
-                # 在drop规则之前插入
+                # 在drop规则的位置插入，这样新规则会在drop规则之前
                 command.extend(['position', str(drop_position)])
         
         # 安全地构建命令，避免split()拆分问题
