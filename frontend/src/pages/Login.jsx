@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Card, Spin, message } from 'antd';
+import { Form, Input, Button, Card, Spin, message, Badge } from 'antd';
 import { UserOutlined, LockOutlined, SafetyOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../api/auth';
@@ -11,22 +11,34 @@ const Login = () => {
   const [wallpaperUrl, setWallpaperUrl] = useState('');
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false);
   const [wallpaperInfo, setWallpaperInfo] = useState({ title: '封神云防护系统' });
+  const [showBackground, setShowBackground] = useState(false);
   const navigate = useNavigate();
 
   // 获取Bing每日壁纸
   const fetchBingWallpaper = async () => {
     try {
       const wallpaperData = await getWallpaperInfo();
-      setWallpaperUrl(wallpaperData.url);
-      setWallpaperInfo(wallpaperData);
-      // 设置加载完成状态
-      setWallpaperLoaded(true);
-      setLoading(false);
+      if (wallpaperData && wallpaperData.url) {
+        setWallpaperUrl(wallpaperData.url);
+        setWallpaperInfo(wallpaperData);
+        // 设置加载完成状态
+        setTimeout(() => {
+          setWallpaperLoaded(true);
+          setShowBackground(true);
+        }, 100); // 短暂延迟确保图片加载
+      } else {
+        // 确保有默认背景
+        setWallpaperUrl('https://picsum.photos/id/1039/1920/1080');
+        setWallpaperLoaded(true);
+        setShowBackground(true);
+      }
     } catch (error) {
       console.error('获取Bing壁纸失败:', error);
       // 加载失败时使用备用图片
-      setWallpaperUrl('https://picsum.photos/id/1059/1920/1080');
+      setWallpaperUrl('https://picsum.photos/id/1039/1920/1080');
       setWallpaperLoaded(true);
+      setShowBackground(true);
+    } finally {
       setLoading(false);
     }
   };
@@ -34,6 +46,7 @@ const Login = () => {
   // 处理壁纸加载完成
   const handleWallpaperLoad = () => {
     setWallpaperLoaded(true);
+    setShowBackground(true);
     setLoading(false);
   };
 
@@ -80,65 +93,80 @@ const Login = () => {
               alt="Bing每日壁纸" 
               src={wallpaperUrl}
               onLoad={handleWallpaperLoad}
-              style={{ opacity: wallpaperLoaded ? 1 : 0 }}
+              onError={(e) => {
+                console.error('壁纸加载失败，使用备用图片', e);
+                setWallpaperUrl('https://picsum.photos/id/1039/1920/1080');
+                setWallpaperLoaded(true);
+                setShowBackground(true);
+                setLoading(false);
+              }}
+              style={{ 
+                opacity: wallpaperLoaded ? 1 : 0,
+                display: 'block',
+                zIndex: showBackground ? 1 : -2
+              }}
             />
           )}
         </div>
-        <div className="background-overlay"></div>
+        <div className="background-overlay" style={{ zIndex: showBackground ? 2 : -1 }}></div>
         
         {/* 登录卡片 */}
-        <Card 
-          className="login-card"
-          bordered={false}
-        >
-          <div className="login-header">
-            <h1>{wallpaperInfo.title}</h1>
-            <p>安全登录，智能防护</p>
-          </div>
-          
-          <Form
-            name="login"
-            onFinish={onFinish}
-            className="login-form"
-            size="large"
+        <Badge.Ribbon text="安全登录" color="#52c41a">
+          <Card 
+            className="login-card"
+            bordered={false}
           >
-            <Form.Item
-              name="username"
-              label="用户名"
-              rules={[{ required: true, message: '请输入用户名' }]}
-            >
-              <Input
-                placeholder="请输入用户名"
-                prefix={<UserOutlined />}
-                className="form-control"
-              />
-            </Form.Item>
+            <div className="login-header">
+              <h1>{wallpaperInfo.title}</h1>
+              <p>安全登录，智能防护</p>
+            </div>
             
-            <Form.Item
-              name="password"
-              label="密码"
-              rules={[{ required: true, message: '请输入密码' }]}
+            <Form
+              name="login"
+              onFinish={onFinish}
+              className="login-form"
+              size="large"
+              layout="vertical"
             >
-              <Input.Password
-                placeholder="请输入密码"
-                prefix={<LockOutlined />}
-                className="form-control"
-              />
-            </Form.Item>
-            
-            <Form.Item>
-              <Button 
-                type="primary" 
-                htmlType="submit"
-                className="btn-login"
-                icon={<SafetyOutlined />}
-                loading={loading}
+              <Form.Item
+                name="username"
+                label="用户名"
+                rules={[{ required: true, message: '请输入用户名' }]}
               >
-                登录
-              </Button>
-            </Form.Item>
-          </Form>
-        </Card>
+                <Input
+                  placeholder="请输入用户名"
+                  prefix={<UserOutlined />}
+                  size="large"
+                />
+              </Form.Item>
+              
+              <Form.Item
+                name="password"
+                label="密码"
+                rules={[{ required: true, message: '请输入密码' }]}
+              >
+                <Input.Password
+                  placeholder="请输入密码"
+                  prefix={<LockOutlined />}
+                  size="large"
+                />
+              </Form.Item>
+              
+              <Form.Item style={{ marginBottom: 0 }}>
+                <Button 
+                  type="primary" 
+                  htmlType="submit"
+                  size="large"
+                  icon={<SafetyOutlined />}
+                  loading={loading}
+                  style={{ width: '100%' }}
+                >
+                  登录
+                </Button>
+              </Form.Item>
+            </Form>
+          </Card>
+        </Badge.Ribbon>
       </Spin>
     </div>
   );

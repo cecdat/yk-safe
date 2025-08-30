@@ -1,21 +1,3 @@
-import axios from 'axios';
-
-// 创建axios实例
-const api = axios.create({
-  timeout: 10000,
-});
-
-// 响应拦截器
-api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    console.warn('External API request failed:', error);
-    return Promise.reject(error);
-  }
-);
-
 // external.js - 外部API服务
 
 // 获取Bing每日壁纸
@@ -44,9 +26,11 @@ export const getBingWallpaper = async () => {
 // 获取备用壁纸
 export const getFallbackWallpaper = async () => {
   try {
-    const response = await fetch('https://picsum.photos/id/1059/1920/1080');
+    // 使用更稳定的备用图片源
+    const randomId = Math.floor(Math.random() * 1000);
+    const fallbackUrl = `https://picsum.photos/id/${randomId}/1920/1080`;
     return {
-      url: response.url,
+      url: fallbackUrl,
       title: '封神云防护系统',
       copyright: 'Unsplash',
       copyrightLink: 'https://unsplash.com'
@@ -61,17 +45,21 @@ export const getFallbackWallpaper = async () => {
 export const getWallpaperInfo = async () => {
   try {
     // 优先尝试Bing壁纸
-    return await getBingWallpaper();
+    const bingResult = await Promise.race([
+      getBingWallpaper(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Bing壁纸请求超时')), 5000))
+    ]);
+    return bingResult;
   } catch (error) {
-    console.warn('Bing壁纸获取失败，使用备用壁纸:', error);
+    console.warn('Bing壁纸获取失败或超时，使用备用壁纸:', error.message);
     try {
       // 备用方案：Unsplash随机壁纸
       return await getFallbackWallpaper();
     } catch (fallbackError) {
       console.error('所有壁纸获取失败:', fallbackError);
-      // 最终备用：返回默认信息
+      // 最终备用：使用本地预定义的图片地址，确保始终有背景图显示
       return {
-        url: null,
+        url: 'https://picsum.photos/id/1039/1920/1080', // 固定使用一个ID的图片作为最终备用
         title: '封神云防护系统',
         copyright: 'YK-Safe',
         copyrightLink: '#'

@@ -1,4 +1,4 @@
-/* Login.css - 登录页面美化样式 */
+/* Login.css - 登录页面美化样式 (已修复布局问题) */
 
 .login-container {
   min-height: 100vh;
@@ -8,33 +8,28 @@
   padding: 20px;
   position: relative;
   overflow: hidden;
-  background: #f0f2f5; /* 添加默认背景色 */
+  background: #1a1a1a; /* 默认深色背景 */
 }
 
-/* 背景图容器 */
+/* --- 背景图和加载动画部分 (这部分是正确的，予以保留) --- */
 .background-container {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  z-index: -2;
+  z-index: 1; /* 提升背景层级 */
 }
-
 #bing-wallpaper {
   width: 100%;
   height: 100%;
   object-fit: cover;
   transition: opacity 1s ease-in-out;
   opacity: 0;
-  display: block;
 }
-
-#bing-wallpaper[src] {
+#bing-wallpaper.visible { /* 新增一个 class 用于控制显示 */
   opacity: 1;
 }
-
-/* 背景模糊遮罩 */
 .background-overlay {
   position: fixed;
   top: 0;
@@ -42,19 +37,20 @@
   width: 100vw;
   height: 100vh;
   background: rgba(0, 0, 0, 0.4);
-  z-index: -1;
+  z-index: 2; /* 遮罩层在背景之上 */
 }
-
-/* 加载指示器 */
+.login-spin {
+  position: absolute !important;
+  z-index: 100; /* Spin 指示器在最上层 */
+}
 .login-spin .ant-spin-dot-item {
   background-color: white !important;
 }
-
 .login-spin .ant-spin-text {
   color: white !important;
 }
 
-/* 登录卡片 */
+/* --- 登录卡片 (保留视觉样式，移除 z-index 冲突) --- */
 .login-card {
   width: 100%;
   max-width: 400px;
@@ -65,263 +61,180 @@
   border-radius: 12px !important;
   padding: 30px !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
-  transition: transform 0.3s ease;
   position: relative;
-  z-index: 10;
+  z-index: 3; /* 卡片在遮罩层之上 */
+  animation: fadeInUp 0.6s ease-out;
 }
-
 .login-card:hover {
   transform: translateY(-5px);
 }
-
 .login-header {
   text-align: center;
   margin-bottom: 30px;
 }
-
 .login-header h1 {
   color: white;
   font-size: 2rem;
+  font-weight: 700;
   margin-bottom: 10px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  font-weight: 700;
 }
-
 .login-header p {
   color: rgba(255, 255, 255, 0.9);
   font-size: 1rem;
   margin: 0;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-/* 表单样式 */
+/* --- 核心修复：重新设计表单布局，解决标签重叠问题 --- */
 .login-form {
   width: 100%;
+}
+
+.login-form .ant-form-item {
+  margin-bottom: 24px;
+}
+
+/* 标签样式 - 确保标签在上方，不重叠 */
+.login-form .ant-form-item-label {
+  display: block !important;
+  text-align: left !important;
+  margin-bottom: 8px !important;
+  padding-bottom: 0 !important;
+  line-height: 1.5 !important;
+  position: relative !important;
+  z-index: 1 !important;
 }
 
 .login-form .ant-form-item-label > label {
   color: rgba(255, 255, 255, 0.9) !important;
   font-weight: 500 !important;
-  text-align: left !important;
+  font-size: 14px !important;
+  height: auto !important;
+  line-height: 1.5 !important;
   display: block !important;
-  margin-bottom: 8px !important;
 }
 
-.login-form .ant-form-item {
-  margin-bottom: 20px;
+/* 输入框容器样式 */
+.login-form .ant-form-item-control {
+  width: 100% !important;
+  position: relative !important;
+  z-index: 2 !important;
 }
 
-.login-form .ant-form-item:last-child {
-  margin-bottom: 0;
-}
-
-/* 标签样式优化 */
-.login-form .ant-form-item-label {
-  padding-bottom: 8px;
-  line-height: 1.5;
-}
-
-.form-control {
-  background: rgba(255, 255, 255, 0.15) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  color: white !important;
-  height: 50px !important;
-  border-radius: 8px !important;
+.login-form .ant-form-item-control-input {
   width: 100% !important;
 }
 
-.form-control .ant-input {
-  background: transparent !important;
-  border: none !important;
-  color: white !important;
-  height: 100% !important;
+.login-form .ant-form-item-control-input-content {
+  width: 100% !important;
 }
 
-.form-control .ant-input::placeholder {
+/* 输入框样式 */
+.login-form .ant-input,
+.login-form .ant-input-affix-wrapper,
+.login-form .ant-input-password {
+  height: 50px !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  font-size: 16px !important;
+}
+
+/* 输入框内部文字和图标颜色 */
+.login-form .ant-input::placeholder,
+.login-form .ant-input-password::placeholder {
   color: rgba(255, 255, 255, 0.5) !important;
 }
 
-.form-control .ant-input:focus {
+.login-form .ant-input-prefix .anticon,
+.login-form .ant-input-password-icon {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: 16px !important;
+}
+
+/* 聚焦效果 */
+.login-form .ant-input:focus,
+.login-form .ant-input-affix-wrapper:focus-within,
+.login-form .ant-input-password:focus-within {
+  border-color: rgba(255, 255, 255, 0.5) !important;
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1) !important;
 }
 
-.form-control .anticon {
-  color: rgba(255, 255, 255, 0.7) !important;
-}
-
-/* 密码输入框特殊样式 */
-.form-control.ant-input-password .ant-input-password-icon {
-  color: rgba(255, 255, 255, 0.7) !important;
-}
-
-.form-control.ant-input-password .ant-input-password-icon:hover {
-  color: rgba(255, 255, 255, 0.9) !important;
-}
-
-/* 登录按钮 */
-.btn-login {
+/* 登录按钮样式 */
+.login-form .ant-btn-primary {
   width: 100% !important;
   height: 50px !important;
-  background: rgba(255, 255, 255, 0.9) !important;
-  color: #2d3748 !important;
+  background: #52c41a !important; /* 改为绿色主题 */
+  color: white !important; /* 文字改为白色 */
   font-weight: 600 !important;
   border: none !important;
   border-radius: 8px !important;
   transition: all 0.3s ease !important;
+  font-size: 16px !important;
 }
 
-.btn-login:hover {
-  background: white !important;
+.login-form .ant-btn-primary:hover {
+  background: #73d13d !important; /* 悬停时稍微亮一点的绿色 */
   transform: translateY(-2px) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3) !important; /* 绿色阴影 */
 }
 
-.btn-login:focus {
-  background: white !important;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3) !important;
+.login-form .ant-btn-primary:focus {
+  background: #52c41a !important;
+  box-shadow: 0 0 0 3px rgba(82, 196, 26, 0.3) !important; /* 绿色聚焦阴影 */
 }
 
 /* 表单验证错误样式 */
 .login-form .ant-form-item-explain-error {
   color: #ff6b6b !important;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+  text-align: left !important;
+  margin-top: 4px !important;
+  font-size: 12px !important;
+  position: relative !important;
+  z-index: 3 !important;
 }
 
-/* 响应式调整 */
-@media (max-width: 576px) {
-  .login-container {
-    padding: 15px;
-  }
-  
-  .login-card {
-    padding: 25px 20px !important;
-  }
-  
-  .login-header h1 {
-    font-size: 1.7rem;
-  }
-  
-  .login-header p {
-    font-size: 0.9rem;
-  }
+/* 徽章样式优化 */
+.login-card .ant-ribbon {
+  z-index: 5 !important;
 }
 
-@media (max-width: 480px) {
-  .login-card {
-    padding: 20px 15px !important;
-  }
-  
-  .login-header h1 {
-    font-size: 1.5rem;
-  }
-  
-  .form-control {
-    height: 45px !important;
-  }
-  
-  .btn-login {
-    height: 45px !important;
-  }
+.login-card .ant-ribbon-text {
+  color: white !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+}
+
+.login-card .ant-ribbon-corner {
+  border-color: #52c41a !important;
+}
+
+.login-card .ant-ribbon-corner::before {
+  border-color: #52c41a !important;
 }
 
 /* 动画效果 */
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 响应式调整 */
+@media (max-width: 480px) {
+  .login-card {
+    padding: 20px 15px !important;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  .login-header h1 {
+    font-size: 1.7rem;
   }
-}
-
-.login-card {
-  animation: fadeInUp 0.6s ease-out;
-}
-
-/* 加载状态优化 */
-.login-spin .ant-spin-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-}
-
-/* 输入框聚焦效果增强 */
-.form-control:focus-within {
-  border-color: rgba(255, 255, 255, 0.4) !important;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1) !important;
-}
-
-/* 按钮加载状态 */
-.btn-login.ant-btn-loading {
-  background: rgba(255, 255, 255, 0.7) !important;
-  color: #2d3748 !important;
-}
-
-/* 卡片悬停效果增强 */
-.login-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
-  border-radius: 12px;
-}
-
-.login-card:hover::before {
-  opacity: 1;
-}
-
-/* 图标样式优化 */
-.form-control .ant-input-prefix {
-  margin-right: 8px;
-}
-
-.form-control .ant-input-suffix {
-  margin-left: 8px;
-}
-
-/* 表单项目间距优化 */
-.login-form .ant-form-item {
-  margin-bottom: 20px;
-}
-
-.login-form .ant-form-item:last-child {
-  margin-bottom: 0;
-}
-
-/* 标签样式优化 */
-.login-form .ant-form-item-label {
-  padding-bottom: 8px;
-}
-
-/* 输入框内部样式 */
-.form-control .ant-input-affix-wrapper {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-
-.form-control .ant-input-affix-wrapper:focus {
-  box-shadow: none !important;
-}
-
-.form-control .ant-input-affix-wrapper:hover {
-  border: none !important;
-}
-
-/* 密码框特殊处理 */
-.form-control.ant-input-password .ant-input-affix-wrapper {
-  background: transparent !important;
-}
-
-.form-control.ant-input-password .ant-input {
-  background: transparent !important;
+  .login-form .ant-input,
+  .login-form .ant-input-affix-wrapper,
+  .login-form .ant-input-password,
+  .login-form .ant-btn-primary {
+    height: 45px !important;
+  }
 }
