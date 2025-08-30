@@ -226,8 +226,11 @@ const Dashboard = () => {
           return <span style={{ color: '#999' }}>{ports || '无端口映射'}</span>;
         }
         
+        // 确保 ports 是字符串类型
+        const portsString = typeof ports === 'string' ? ports : String(ports);
+        
         // 解析端口映射字符串
-        const portMappings = ports.split(', ').filter(p => p.trim());
+        const portMappings = portsString.split(', ').filter(p => p.trim());
         if (portMappings.length === 0) return <span style={{ color: '#999' }}>无端口映射</span>;
         
         return (
@@ -263,17 +266,23 @@ const Dashboard = () => {
         
         return (
           <div>
-            {filteredMounts.slice(0, 3).map((mount, index) => (
-              <Tooltip 
-                key={index} 
-                title={mount}
-                placement="top"
-              >
-                <Tag color="green" style={{ marginBottom: 4 }}>
-                  {mount.split(':')[0]?.split('/').pop() || 'unknown'} → {mount.split(':')[1]?.split('/').pop() || 'unknown'}
-                </Tag>
-              </Tooltip>
-            ))}
+            {filteredMounts.slice(0, 3).map((mount, index) => {
+              // 确保 mount 是字符串类型
+              const mountString = typeof mount === 'string' ? mount : String(mount);
+              const mountParts = mountString.split(':');
+              
+              return (
+                <Tooltip 
+                  key={index} 
+                  title={mountString}
+                  placement="top"
+                >
+                  <Tag color="green" style={{ marginBottom: 4 }}>
+                    {mountParts[0]?.split('/').pop() || 'unknown'} → {mountParts[1]?.split('/').pop() || 'unknown'}
+                  </Tag>
+                </Tooltip>
+              );
+            })}
             {filteredMounts.length > 3 && (
               <Tag color="default">+{filteredMounts.length - 3}</Tag>
             )}
