@@ -282,22 +282,49 @@ const Dashboard = () => {
           return <span style={{ color: '#999' }}>{ports || '无端口映射'}</span>;
         }
         
-        // 确保 ports 是字符串类型
-        const portsString = typeof ports === 'string' ? ports : String(ports);
+        // 处理字符串格式的端口映射
+        if (typeof ports === 'string') {
+          const portMappings = ports.split(', ').filter(p => p.trim());
+          if (portMappings.length === 0) return <span style={{ color: '#999' }}>无端口映射</span>;
+          
+          return (
+            <div>
+              {portMappings.map((port, index) => (
+                <Tag key={index} color="blue" style={{ marginBottom: 4 }}>
+                  {port}
+                </Tag>
+              ))}
+            </div>
+          );
+        }
         
-        // 解析端口映射字符串
-        const portMappings = portsString.split(', ').filter(p => p.trim());
-        if (portMappings.length === 0) return <span style={{ color: '#999' }}>无端口映射</span>;
+        // 处理对象格式的端口映射（来自Docker API）
+        if (typeof ports === 'object' && ports !== null) {
+          const portMappings = [];
+          for (const [containerPort, hostBindings] of Object.entries(ports)) {
+            if (hostBindings && Array.isArray(hostBindings)) {
+              for (const binding of hostBindings) {
+                const hostIp = binding.HostIp || '0.0.0.0';
+                const hostPort = binding.HostPort || '';
+                portMappings.push(`${hostIp}:${hostPort}->${containerPort}`);
+              }
+            }
+          }
+          
+          if (portMappings.length === 0) return <span style={{ color: '#999' }}>无端口映射</span>;
+          
+          return (
+            <div>
+              {portMappings.map((port, index) => (
+                <Tag key={index} color="blue" style={{ marginBottom: 4 }}>
+                  {port}
+                </Tag>
+              ))}
+            </div>
+          );
+        }
         
-        return (
-          <div>
-            {portMappings.map((port, index) => (
-              <Tag key={index} color="blue" style={{ marginBottom: 4 }}>
-                {port}
-              </Tag>
-            ))}
-          </div>
-        );
+        return <span style={{ color: '#999' }}>无端口映射</span>;
       },
     },
     {
@@ -308,42 +335,47 @@ const Dashboard = () => {
       render: (mounts, record) => {
         if (!mounts || mounts.length === 0) return <span style={{ color: '#999' }}>无路径映射</span>;
         
-        // 过滤掉时区映射和系统映射
-        const filteredMounts = mounts.filter(mount => 
-          !mount.includes('/usr/share/zoneinfo') && 
-          !mount.includes('/etc/localtime') &&
-          !mount.includes('/etc/timezone') &&
-          !mount.includes('/proc/') &&
-          !mount.includes('/sys/') &&
-          !mount.includes('/dev/')
-        );
+        // 处理字符串数组格式的挂载信息
+        if (Array.isArray(mounts)) {
+          // 过滤掉时区映射和系统映射
+          const filteredMounts = mounts.filter(mount => 
+            !mount.includes('/usr/share/zoneinfo') && 
+            !mount.includes('/etc/localtime') &&
+            !mount.includes('/etc/timezone') &&
+            !mount.includes('/proc/') &&
+            !mount.includes('/sys/') &&
+            !mount.includes('/dev/')
+          );
+          
+          if (filteredMounts.length === 0) return <span style={{ color: '#999' }}>无路径映射</span>;
+          
+          return (
+            <div>
+              {filteredMounts.slice(0, 3).map((mount, index) => {
+                // 确保 mount 是字符串类型
+                const mountString = typeof mount === 'string' ? mount : String(mount);
+                const mountParts = mountString.split(':');
+                
+                return (
+                  <Tooltip 
+                    key={index} 
+                    title={mountString}
+                    placement="top"
+                  >
+                    <Tag color="green" style={{ marginBottom: 4 }}>
+                      {mountParts[0]?.split('/').pop() || 'unknown'} → {mountParts[1]?.split('/').pop() || 'unknown'}
+                    </Tag>
+                  </Tooltip>
+                );
+              })}
+              {filteredMounts.length > 3 && (
+                <Tag color="default">+{filteredMounts.length - 3}</Tag>
+              )}
+            </div>
+          );
+        }
         
-        if (filteredMounts.length === 0) return <span style={{ color: '#999' }}>无路径映射</span>;
-        
-        return (
-          <div>
-            {filteredMounts.slice(0, 3).map((mount, index) => {
-              // 确保 mount 是字符串类型
-              const mountString = typeof mount === 'string' ? mount : String(mount);
-              const mountParts = mountString.split(':');
-              
-              return (
-                <Tooltip 
-                  key={index} 
-                  title={mountString}
-                  placement="top"
-                >
-                  <Tag color="green" style={{ marginBottom: 4 }}>
-                    {mountParts[0]?.split('/').pop() || 'unknown'} → {mountParts[1]?.split('/').pop() || 'unknown'}
-                  </Tag>
-                </Tooltip>
-              );
-            })}
-            {filteredMounts.length > 3 && (
-              <Tag color="default">+{filteredMounts.length - 3}</Tag>
-            )}
-          </div>
-        );
+        return <span style={{ color: '#999' }}>无路径映射</span>;
       },
     },
     {
@@ -419,39 +451,34 @@ const Dashboard = () => {
       </div>
 
       <Row gutter={[16, 16]}>
-        {/* 第一行：防火墙状态、防护规则、CPU使用率、内存使用率、系统负载、网络连接数 */}
-        <Col span={4}>
-          <Card className="hover-lift" size="small">
-            <Statistic
-              title="防火墙状态"
-              value={stats.firewallStatus.is_running ? '运行中' : '已停止'}
-              valueStyle={{
-                color: stats.firewallStatus.is_running ? '#52c41a' : '#ff4d4f'
-              }}
-              prefix={stats.firewallStatus.is_running ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
-            />
-            <div style={{ marginTop: 8, fontSize: '12px' }}>
-              <Tag color={stats.firewallStatus.is_running ? 'green' : 'red'}>
-                {stats.firewallStatus.is_running ? '运行' : '停止'}
-              </Tag>
+        {/* 第一行：防火墙状态、CPU使用率、内存使用率、系统负载、网络连接数 */}
+        <Col span={4.8}>
+          <Card className="hover-lift" size="small" style={{ height: '140px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <Statistic
+                  title="防火墙状态"
+                  value={stats.firewallStatus.is_running ? '运行中' : '已停止'}
+                  valueStyle={{
+                    color: stats.firewallStatus.is_running ? '#52c41a' : '#ff4d4f'
+                  }}
+                  prefix={stats.firewallStatus.is_running ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
+                />
+                <div style={{ marginTop: 8, fontSize: '12px' }}>
+                  <Tag color={stats.firewallStatus.is_running ? 'green' : 'red'}>
+                    {stats.firewallStatus.is_running ? '运行' : '停止'}
+                  </Tag>
+                  <Tag color="blue" style={{ marginLeft: 8 }}>
+                    规则: {stats.firewallStatus.rules_count || 0}
+                  </Tag>
+                </div>
+              </div>
+              <SafetyOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
             </div>
           </Card>
         </Col>
-        <Col span={4}>
-          <Card className="hover-lift" size="small">
-            <Statistic
-              title="防护规则"
-              value={stats.firewallStatus.rules_count || 0}
-              valueStyle={{ color: '#1890ff' }}
-              prefix={<SafetyOutlined />}
-            />
-            <div style={{ marginTop: 8, fontSize: '12px' }}>
-              <Tag color="blue">规则数量</Tag>
-            </div>
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card className="hover-lift">
+        <Col span={4.8}>
+          <Card className="hover-lift" style={{ height: '140px' }}>
             <Statistic
               title="CPU使用率"
               value={stats.systemInfo.cpu.percent}
@@ -465,8 +492,8 @@ const Dashboard = () => {
             </div>
           </Card>
         </Col>
-        <Col span={4}>
-          <Card className="hover-lift">
+        <Col span={4.8}>
+          <Card className="hover-lift" style={{ height: '140px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <Statistic
@@ -500,8 +527,8 @@ const Dashboard = () => {
             </div>
           </Card>
         </Col>
-        <Col span={4}>
-          <Card className="hover-lift">
+        <Col span={4.8}>
+          <Card className="hover-lift" style={{ height: '140px' }}>
             <Statistic
               title="系统负载"
               value={stats.systemInfo.load.load_1min}
@@ -517,8 +544,8 @@ const Dashboard = () => {
             </div>
           </Card>
         </Col>
-        <Col span={4}>
-          <Card className="hover-lift network-connections-card">
+        <Col span={4.8}>
+          <Card className="hover-lift network-connections-card" style={{ height: '140px' }}>
             <Statistic
               title="网络连接数"
               value={stats.networkInfo.connections.total}
@@ -545,18 +572,58 @@ const Dashboard = () => {
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col span={12}>
           <Card className="hover-lift">
-            <Statistic
-              title="磁盘使用情况"
-              value={stats.systemInfo.disk.percent}
-              precision={2}
-              suffix="%"
-              valueStyle={{ color: stats.systemInfo.disk.percent > 90 ? '#ff4d4f' : '#52c41a' }}
-              prefix={<HddOutlined />}
-            />
-            <div style={{ marginTop: 8, fontSize: '12px' }}>
-              <div>总容量: {formatBytes(stats.systemInfo.disk.total)}</div>
-              <div>已使用: {formatBytes(stats.systemInfo.disk.used)}</div>
-              <div>可用空间: {formatBytes(stats.systemInfo.disk.free)}</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <Statistic
+                title="磁盘使用情况"
+                value={stats.systemInfo.disk.percent}
+                precision={2}
+                suffix="%"
+                valueStyle={{ color: stats.systemInfo.disk.percent > 90 ? '#ff4d4f' : '#52c41a' }}
+                prefix={<HddOutlined />}
+              />
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center' }}>
+              {/* 主磁盘 */}
+              <div style={{ textAlign: 'center' }}>
+                <Progress
+                  type="circle"
+                  percent={stats.systemInfo.disk.percent}
+                  size={80}
+                  strokeColor={stats.systemInfo.disk.percent > 90 ? '#ff4d4f' : '#52c41a'}
+                  format={(percent) => (
+                    <div style={{ fontSize: '12px', fontWeight: 'bold' }}>
+                      <div>根目录</div>
+                      <div>{Math.round(percent)}%</div>
+                    </div>
+                  )}
+                />
+                <div style={{ marginTop: 8, fontSize: '11px', color: '#666' }}>
+                  {formatBytes(stats.systemInfo.disk.used)} / {formatBytes(stats.systemInfo.disk.total)}
+                </div>
+              </div>
+              
+              {/* 其他磁盘分区 */}
+              {stats.systemInfo.disk_partitions && stats.systemInfo.disk_partitions.length > 0 && 
+                stats.systemInfo.disk_partitions.slice(0, 3).map((partition, index) => (
+                  <div key={index} style={{ textAlign: 'center' }}>
+                    <Progress
+                      type="circle"
+                      percent={partition.percent}
+                      size={80}
+                      strokeColor={partition.percent > 90 ? '#ff4d4f' : '#52c41a'}
+                      format={(percent) => (
+                        <div style={{ fontSize: '12px', fontWeight: 'bold' }}>
+                          <div>{partition.mountpoint.split('/').pop() || '分区'}</div>
+                          <div>{Math.round(percent)}%</div>
+                        </div>
+                      )}
+                    />
+                    <div style={{ marginTop: 8, fontSize: '11px', color: '#666' }}>
+                      {formatBytes(partition.used)} / {formatBytes(partition.total)}
+                    </div>
+                  </div>
+                ))
+              }
             </div>
           </Card>
         </Col>
