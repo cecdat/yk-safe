@@ -148,6 +148,8 @@
   width: 100% !important;
   box-sizing: border-box !important;
   font-size: 16px !important;
+  line-height: 50px !important; /* 确保文字垂直居中 */
+  padding: 0 16px !important; /* 统一内边距 */
 }
 
 /* 修复Ant Design默认样式的冲突 */
@@ -155,6 +157,8 @@
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
   background: rgba(255, 255, 255, 0.15) !important;
   box-shadow: none !important;
+  line-height: 50px !important; /* 确保文字垂直居中 */
+  padding: 0 16px !important; /* 统一内边距 */
 }
 
 .login-form .ant-input-affix-wrapper:hover {
@@ -171,6 +175,8 @@
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
   background: rgba(255, 255, 255, 0.15) !important;
   box-shadow: none !important;
+  line-height: 50px !important; /* 确保文字垂直居中 */
+  padding: 0 16px !important; /* 统一内边距 */
 }
 
 .login-form .ant-input-password:hover {
@@ -194,12 +200,37 @@
   font-size: 16px !important;
 }
 
+/* 确保输入框文字完全居中 */
+.login-form .ant-input,
+.login-form .ant-input-affix-wrapper .ant-input,
+.login-form .ant-input-password .ant-input {
+  display: flex !important;
+  align-items: center !important; /* 垂直居中 */
+  justify-content: flex-start !important; /* 水平左对齐 */
+  min-height: 50px !important; /* 确保最小高度 */
+}
+
+/* 修复可能的文字偏移 */
+.login-form .ant-input-affix-wrapper .ant-input-prefix,
+.login-form .ant-input-affix-wrapper .ant-input-suffix {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.login-form .ant-input-password .ant-input-password-icon {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 /* 移除Ant Design的默认边框和阴影 */
 .login-form .ant-input-affix-wrapper .ant-input {
   border: none !important;
   background: transparent !important;
   box-shadow: none !important;
   outline: none !important;
+  line-height: 50px !important; /* 确保内部输入框文字居中 */
+  padding: 0 !important; /* 移除内部输入框的内边距 */
+  height: 50px !important; /* 确保高度一致 */
 }
 
 .login-form .ant-input-password .ant-input {
@@ -207,6 +238,9 @@
   background: transparent !important;
   box-shadow: none !important;
   outline: none !important;
+  line-height: 50px !important; /* 确保内部输入框文字居中 */
+  padding: 0 !important; /* 移除内部输入框的内边距 */
+  height: 50px !important; /* 确保高度一致 */
 }
 
 /* 强制移除所有可能的边框和阴影 */
@@ -229,11 +263,17 @@
 .login-form .ant-input-affix-wrapper .ant-input-suffix {
   background: transparent !important;
   border: none !important;
+  display: flex !important;
+  align-items: center !important; /* 确保图标垂直居中 */
+  height: 50px !important;
 }
 
 .login-form .ant-input-password .ant-input-password-icon {
   background: transparent !important;
   border: none !important;
+  display: flex !important;
+  align-items: center !important; /* 确保图标垂直居中 */
+  height: 50px !important;
 }
 
 /* 登录按钮样式 */
