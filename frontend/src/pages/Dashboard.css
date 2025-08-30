@@ -9,30 +9,20 @@
   background-position: center;
 }
 
-.page-header {
-  text-align: center;
-  margin-bottom: 32px;
+.page-title {
   color: white;
+  font-size: 24px;
+  font-weight: 600;
   text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-}
-
-.page-header h1 {
-  font-size: 28px;
-  margin-bottom: 8px;
-  font-weight: 700;
-}
-
-.page-header p {
-  font-size: 16px;
-  opacity: 0.9;
+  margin: 0;
 }
 
 /* 毛玻璃卡片样式 */
 .glass-card {
-  background: rgba(255, 255, 255, 0.25) !important;
-  backdrop-filter: blur(15px) !important;
-  -webkit-backdrop-filter: blur(15px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
   transition: all 0.3s ease;
   overflow: hidden;
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37) !important;
@@ -155,31 +145,14 @@
   color: #333;
 }
 
-/* 风拂动画 */
-@keyframes windEffect {
-  0% { transform: rotate(0deg) scale(1); }
-  25% { transform: rotate(-2deg) scale(0.98); }
-  50% { transform: rotate(2deg) scale(0.99); }
-  75% { transform: rotate(-1deg) scale(0.995); }
-  100% { transform: rotate(0deg) scale(1); }
-}
-
-.animate-wind {
-  animation: windEffect 0.8s ease-in-out;
-}
-
 /* 响应式设计 */
 @media (max-width: 1200px) {
   .glass-cards-container {
     padding: 16px;
   }
   
-  .page-header h1 {
-    font-size: 24px;
-  }
-  
-  .page-header p {
-    font-size: 14px;
+  .page-title {
+    font-size: 20px;
   }
 }
 
@@ -188,12 +161,8 @@
     padding: 12px;
   }
   
-  .page-header h1 {
-    font-size: 20px;
-  }
-  
-  .page-header p {
-    font-size: 12px;
+  .page-title {
+    font-size: 18px;
   }
   
   .flip-container {
@@ -272,4 +241,50 @@
   background: rgba(255, 255, 255, 0.8) !important;
   color: #333 !important;
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+/* 按钮样式优化 */
+.glass-cards-container .ant-btn-primary {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #2d3748 !important;
+  border: none !important;
+  font-weight: 600 !important;
+}
+
+.glass-cards-container .ant-btn-primary:hover {
+  background: white !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 统计数字样式 */
+.glass-card .ant-statistic-title {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-weight: 500 !important;
+}
+
+.glass-card .ant-statistic-content {
+  color: #333 !important;
+  font-weight: 600 !important;
+}
+
+/* 表格样式优化 */
+.glass-card .ant-table {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.glass-card .ant-table-thead > tr > th {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.glass-card .ant-table-tbody > tr > td {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #333 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.glass-card .ant-table-tbody > tr:hover > td {
+  background: rgba(255, 255, 255, 0.15) !important;
 }

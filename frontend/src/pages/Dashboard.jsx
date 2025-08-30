@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Statistic, Table, Tag, Space, Button, message, Progress, Tooltip, Badge } from 'antd';
 import {
   SafetyOutlined,
@@ -75,9 +75,6 @@ const Dashboard = () => {
     }
   });
 
-  // 添加动画相关的ref
-  const cardsRef = useRef({});
-
   // 翻牌动画函数
   const flipToNumber = (element, newNumber) => {
     if (!element) return;
@@ -97,27 +94,6 @@ const Dashboard = () => {
     setTimeout(() => {
       element.classList.remove('flip-animation');
     }, 600);
-  };
-
-  // 随机卡片风拂动画
-  const animateRandomCards = () => {
-    const cards = Object.values(cardsRef.current).filter(Boolean);
-    cards.forEach(card => {
-      card.classList.remove('animate-wind');
-    });
-    
-    const numCards = Math.floor(Math.random() * 3) + 1; // 1-3张卡片
-    const shuffledCards = Array.from(cards).sort(() => 0.5 - Math.random());
-    
-    shuffledCards.slice(0, numCards).forEach(card => {
-      void card.offsetWidth; // 强制重绘
-      card.classList.add('animate-wind');
-    });
-  };
-
-  // 触发风拂动画按钮
-  const handleWindAnimation = () => {
-    animateRandomCards();
   };
 
   const fetchDashboardData = async () => {
@@ -217,17 +193,6 @@ const Dashboard = () => {
     // 每30秒刷新一次数据
     const interval = setInterval(fetchDashboardData, 30000);
     return () => clearInterval(interval);
-  }, []);
-
-  // 定时随机触发风拂动画
-  useEffect(() => {
-    const windInterval = setInterval(() => {
-      if (Math.random() > 0.7) {
-        animateRandomCards();
-      }
-    }, 15000);
-    
-    return () => clearInterval(windInterval);
   }, []);
 
   const processColumns = [
@@ -489,32 +454,18 @@ const Dashboard = () => {
 
   return (
     <div className="glass-cards-container">
-      <div className="page-header">
-        <h1>系统概览</h1>
-        <p>实时监控系统状态与性能指标</p>
-      </div>
-
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <h2 className="page-title">系统概览</h2>
         </div>
-        <Space>
-          <Button 
-            type="default" 
-            icon={<ReloadOutlined />} 
-            onClick={handleWindAnimation}
-          >
-            触发风拂动画
-          </Button>
-          <Button 
-            type="primary" 
-            icon={<ReloadOutlined />} 
-            onClick={fetchDashboardData}
-            loading={loading}
-          >
-            刷新数据
-          </Button>
-        </Space>
+        <Button 
+          type="primary" 
+          icon={<ReloadOutlined />} 
+          onClick={fetchDashboardData}
+          loading={loading}
+        >
+          刷新数据
+        </Button>
       </div>
 
       <Row gutter={[16, 16]}>
@@ -524,7 +475,6 @@ const Dashboard = () => {
             className="glass-card firewall-card"
             size="small" 
             style={{ height: '140px' }}
-            ref={el => cardsRef.current.firewall = el}
           >
             <div className="card-title firewall-title">
               <SafetyOutlined className="mr-2" />
@@ -559,7 +509,6 @@ const Dashboard = () => {
           <Card 
             className="glass-card cpu-card"
             style={{ height: '140px' }}
-            ref={el => cardsRef.current.cpu = el}
           >
             <div className="card-title cpu-title">
               <DesktopOutlined className="mr-2" />
@@ -589,7 +538,6 @@ const Dashboard = () => {
           <Card 
             className="glass-card memory-card"
             style={{ height: '140px' }}
-            ref={el => cardsRef.current.memory = el}
           >
             <div className="card-title memory-title">
               <HddOutlined className="mr-2" />
@@ -637,7 +585,6 @@ const Dashboard = () => {
           <Card 
             className="glass-card load-card"
             style={{ height: '140px' }}
-            ref={el => cardsRef.current.load = el}
           >
             <div className="card-title load-title">
               <DesktopOutlined className="mr-2" />
@@ -665,7 +612,6 @@ const Dashboard = () => {
           <Card 
             className="glass-card network-card"
             style={{ height: '140px' }}
-            ref={el => cardsRef.current.network = el}
           >
             <div className="card-title network-title">
               <DesktopOutlined className="mr-2" />
