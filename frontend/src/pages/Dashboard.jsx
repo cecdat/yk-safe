@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Row, Col, Statistic, Table, Tag, Space, Button, message, Progress, Tooltip, Badge } from 'antd';
 import {
   SafetyOutlined,
@@ -20,6 +20,7 @@ import {
   getContainerInfo 
 } from '../api/monitor';
 import { ensureObject } from '../utils/dataUtils';
+import './Dashboard.css';
 
 // 格式化字节大小
 const formatBytes = (bytes, decimals = 2) => {
@@ -73,6 +74,51 @@ const Dashboard = () => {
       total_containers: 0
     }
   });
+
+  // 添加动画相关的ref
+  const cardsRef = useRef({});
+
+  // 翻牌动画函数
+  const flipToNumber = (element, newNumber) => {
+    if (!element) return;
+    
+    const oldNumber = element.getAttribute('data-digit');
+    if (oldNumber === newNumber.toString()) return;
+    
+    element.setAttribute('data-digit', newNumber);
+    element.classList.add('flip-animation');
+    
+    // 动画中间更新数字
+    setTimeout(() => {
+      element.textContent = newNumber;
+    }, 300);
+    
+    // 动画结束移除类
+    setTimeout(() => {
+      element.classList.remove('flip-animation');
+    }, 600);
+  };
+
+  // 随机卡片风拂动画
+  const animateRandomCards = () => {
+    const cards = Object.values(cardsRef.current).filter(Boolean);
+    cards.forEach(card => {
+      card.classList.remove('animate-wind');
+    });
+    
+    const numCards = Math.floor(Math.random() * 3) + 1; // 1-3张卡片
+    const shuffledCards = Array.from(cards).sort(() => 0.5 - Math.random());
+    
+    shuffledCards.slice(0, numCards).forEach(card => {
+      void card.offsetWidth; // 强制重绘
+      card.classList.add('animate-wind');
+    });
+  };
+
+  // 触发风拂动画按钮
+  const handleWindAnimation = () => {
+    animateRandomCards();
+  };
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -166,8 +212,6 @@ const Dashboard = () => {
     }
   };
 
-
-
   useEffect(() => {
     fetchDashboardData();
     // 每30秒刷新一次数据
@@ -175,7 +219,16 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
-
+  // 定时随机触发风拂动画
+  useEffect(() => {
+    const windInterval = setInterval(() => {
+      if (Math.random() > 0.7) {
+        animateRandomCards();
+      }
+    }, 15000);
+    
+    return () => clearInterval(windInterval);
+  }, []);
 
   const processColumns = [
     {
@@ -435,134 +488,210 @@ const Dashboard = () => {
   ];
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div className="glass-cards-container">
+      <div className="page-header">
+        <h1>系统概览</h1>
+        <p>实时监控系统状态与性能指标</p>
+      </div>
+
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <h2 className="page-title">系统概览</h2>
         </div>
-        <Button 
-          type="primary" 
-          icon={<ReloadOutlined />} 
-          onClick={fetchDashboardData}
-          loading={loading}
-        >
-          刷新数据
-        </Button>
+        <Space>
+          <Button 
+            type="default" 
+            icon={<ReloadOutlined />} 
+            onClick={handleWindAnimation}
+          >
+            触发风拂动画
+          </Button>
+          <Button 
+            type="primary" 
+            icon={<ReloadOutlined />} 
+            onClick={fetchDashboardData}
+            loading={loading}
+          >
+            刷新数据
+          </Button>
+        </Space>
       </div>
 
       <Row gutter={[16, 16]}>
         {/* 第一行：防火墙状态、CPU使用率、内存使用率、系统负载、网络连接数 */}
         <Col span={4.8}>
-          <Card className="hover-lift" size="small" style={{ height: '140px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <Statistic
-                  title="防火墙状态"
-                  value={stats.firewallStatus.is_running ? '运行中' : '已停止'}
-                  valueStyle={{
-                    color: stats.firewallStatus.is_running ? '#52c41a' : '#ff4d4f'
-                  }}
-                  prefix={stats.firewallStatus.is_running ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
-                />
-                <div style={{ marginTop: 8, fontSize: '12px' }}>
-                  <Tag color={stats.firewallStatus.is_running ? 'green' : 'red'}>
-                    {stats.firewallStatus.is_running ? '运行' : '停止'}
-                  </Tag>
-                  <Tag color="blue" style={{ marginLeft: 8 }}>
-                    规则: {stats.firewallStatus.rules_count || 0}
-                  </Tag>
-                </div>
-              </div>
-              <SafetyOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+          <Card 
+            className="glass-card firewall-card"
+            size="small" 
+            style={{ height: '140px' }}
+            ref={el => cardsRef.current.firewall = el}
+          >
+            <div className="card-title firewall-title">
+              <SafetyOutlined className="mr-2" />
+              防火墙状态
             </div>
-          </Card>
-        </Col>
-        <Col span={4.8}>
-          <Card className="hover-lift" style={{ height: '140px' }}>
-            <Statistic
-              title="CPU使用率"
-              value={stats.systemInfo.cpu.percent}
-              precision={2}
-              suffix="%"
-              valueStyle={{ color: stats.systemInfo.cpu.percent > 80 ? '#ff4d4f' : '#52c41a' }}
-              prefix={<DesktopOutlined />}
-            />
-            <div style={{ marginTop: 8, fontSize: 12, color: '#6B7A6B' }}>
-              核心数: {stats.systemInfo.cpu.count || 'N/A'}
-            </div>
-          </Card>
-        </Col>
-        <Col span={4.8}>
-          <Card className="hover-lift" style={{ height: '140px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <Statistic
-                  title="内存使用率"
-                  value={stats.systemInfo.memory.percent}
-                  suffix="%"
-                  valueStyle={{
-                    color: stats.systemInfo.memory.percent > 90 ? '#ff4d4f' : 
-                           stats.systemInfo.memory.percent > 80 ? '#faad14' : '#52c41a'
-                  }}
-                  prefix={<HddOutlined />}
-                />
-                <div style={{ marginTop: 8, fontSize: '12px' }}>
-                  <div>总内存: {formatBytes(stats.systemInfo.memory.total)}</div>
-                  <div>已使用: {formatBytes(stats.systemInfo.memory.used)}</div>
-                  <div>可用: {formatBytes(stats.systemInfo.memory.free)}</div>
-                </div>
-              </div>
-              <div style={{ width: 80, height: 80 }}>
-                <Progress
-                  type="circle"
-                  percent={stats.systemInfo.memory.percent}
-                  size={80}
-                  strokeColor={
-                    stats.systemInfo.memory.percent > 90 ? '#ff4d4f' : 
-                    stats.systemInfo.memory.percent > 80 ? '#faad14' : '#52c41a'
-                  }
-                  format={(percent) => `${Math.round(percent)}%`}
-                />
-              </div>
-            </div>
-          </Card>
-        </Col>
-        <Col span={4.8}>
-          <Card className="hover-lift" style={{ height: '140px' }}>
-            <Statistic
-              title="系统负载"
-              value={stats.systemInfo.load.load_1min}
-              precision={2}
-              valueStyle={{ color: '#1890ff' }}
-              prefix={<DesktopOutlined />}
-            />
-            <div style={{ marginTop: 8, fontSize: '12px' }}>
-              <div>1分钟: {stats.systemInfo.load.load_1min}</div>
-              <div>5分钟: {stats.systemInfo.load.load_5min}</div>
-              <div>15分钟: {stats.systemInfo.load.load_15min}</div>
-              <div>每CPU: {stats.systemInfo.load.load_per_cpu}</div>
-            </div>
-          </Card>
-        </Col>
-        <Col span={4.8}>
-          <Card className="hover-lift network-connections-card" style={{ height: '140px' }}>
-            <Statistic
-              title="网络连接数"
-              value={stats.networkInfo.connections.total}
-              valueStyle={{ color: '#1890ff' }}
-              prefix={<DesktopOutlined />}
-            />
-            <div style={{ marginTop: 8, fontSize: '12px' }}>
-              {stats.networkInfo.connections.top_ips && stats.networkInfo.connections.top_ips.length > 0 && (
+            <div className="card-content">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <div style={{ fontWeight: 'bold', marginBottom: 4 }}>TOP5 IP:</div>
-                  {stats.networkInfo.connections.top_ips.slice(0, 5).map((item, index) => (
-                    <div key={index} style={{ fontSize: '11px', marginBottom: 2 }}>
-                      {item.ip} ({item.count})
+                  <div className="status-value">
+                    <div className="flip-container">
+                      <div className="flip-digit" data-digit={stats.firewallStatus.is_running ? '1' : '0'}>
+                        {stats.firewallStatus.is_running ? '1' : '0'}
+                      </div>
                     </div>
-                  ))}
+                    <span className="status-text">{stats.firewallStatus.is_running ? '运行中' : '已停止'}</span>
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: '12px' }}>
+                    <Tag color={stats.firewallStatus.is_running ? 'green' : 'red'}>
+                      {stats.firewallStatus.is_running ? '运行' : '停止'}
+                    </Tag>
+                    <Tag color="blue" style={{ marginLeft: 8 }}>
+                      规则: {stats.firewallStatus.rules_count || 0}
+                    </Tag>
+                  </div>
                 </div>
-              )}
+                <SafetyOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col span={4.8}>
+          <Card 
+            className="glass-card cpu-card"
+            style={{ height: '140px' }}
+            ref={el => cardsRef.current.cpu = el}
+          >
+            <div className="card-title cpu-title">
+              <DesktopOutlined className="mr-2" />
+              CPU使用率
+            </div>
+            <div className="card-content">
+              <div className="cpu-value">
+                <div className="flip-container">
+                  <div className="flip-digit" data-digit={Math.floor(stats.systemInfo.cpu.percent / 10)}>
+                    {Math.floor(stats.systemInfo.cpu.percent / 10)}
+                  </div>
+                </div>
+                <div className="flip-container">
+                  <div className="flip-digit" data-digit={Math.floor(stats.systemInfo.cpu.percent % 10)}>
+                    {Math.floor(stats.systemInfo.cpu.percent % 10)}
+                  </div>
+                </div>
+                <span className="unit">%</span>
+              </div>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#6B7A6B' }}>
+                核心数: {stats.systemInfo.cpu.count || 'N/A'}
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col span={4.8}>
+          <Card 
+            className="glass-card memory-card"
+            style={{ height: '140px' }}
+            ref={el => cardsRef.current.memory = el}
+          >
+            <div className="card-title memory-title">
+              <HddOutlined className="mr-2" />
+              内存使用率
+            </div>
+            <div className="card-content">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div className="memory-value">
+                    <div className="flip-container">
+                      <div className="flip-digit" data-digit={Math.floor(stats.systemInfo.memory.percent / 10)}>
+                        {Math.floor(stats.systemInfo.memory.percent / 10)}
+                      </div>
+                    </div>
+                    <div className="flip-container">
+                      <div className="flip-digit" data-digit={Math.floor(stats.systemInfo.memory.percent % 10)}>
+                        {Math.floor(stats.systemInfo.memory.percent % 10)}
+                      </div>
+                    </div>
+                    <span className="unit">%</span>
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: '12px' }}>
+                    <div>总内存: {formatBytes(stats.systemInfo.memory.total)}</div>
+                    <div>已使用: {formatBytes(stats.systemInfo.memory.used)}</div>
+                    <div>可用: {formatBytes(stats.systemInfo.memory.free)}</div>
+                  </div>
+                </div>
+                <div style={{ width: 80, height: 80 }}>
+                  <Progress
+                    type="circle"
+                    percent={stats.systemInfo.memory.percent}
+                    size={80}
+                    strokeColor={
+                      stats.systemInfo.memory.percent > 90 ? '#ff4d4f' : 
+                      stats.systemInfo.memory.percent > 80 ? '#faad14' : '#52c41a'
+                    }
+                    format={(percent) => `${Math.round(percent)}%`}
+                  />
+                </div>
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col span={4.8}>
+          <Card 
+            className="glass-card load-card"
+            style={{ height: '140px' }}
+            ref={el => cardsRef.current.load = el}
+          >
+            <div className="card-title load-title">
+              <DesktopOutlined className="mr-2" />
+              系统负载
+            </div>
+            <div className="card-content">
+              <div className="load-value">
+                <div className="flip-container">
+                  <div className="flip-digit" data-digit={Math.floor(stats.systemInfo.load.load_1min)}>
+                    {Math.floor(stats.systemInfo.load.load_1min)}
+                  </div>
+                </div>
+                <span className="decimal">.{Math.floor((stats.systemInfo.load.load_1min % 1) * 10)}</span>
+              </div>
+              <div style={{ marginTop: 8, fontSize: '12px' }}>
+                <div>1分钟: {stats.systemInfo.load.load_1min}</div>
+                <div>5分钟: {stats.systemInfo.load.load_5min}</div>
+                <div>15分钟: {stats.systemInfo.load.load_15min}</div>
+                <div>每CPU: {stats.systemInfo.load.load_per_cpu}</div>
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col span={4.8}>
+          <Card 
+            className="glass-card network-card"
+            style={{ height: '140px' }}
+            ref={el => cardsRef.current.network = el}
+          >
+            <div className="card-title network-title">
+              <DesktopOutlined className="mr-2" />
+              网络连接数
+            </div>
+            <div className="card-content">
+              <div className="network-value">
+                <div className="flip-container">
+                  <div className="flip-digit" data-digit={Math.floor(stats.networkInfo.connections.total / 1000)}>
+                    {Math.floor(stats.networkInfo.connections.total / 1000)}
+                  </div>
+                </div>
+                <span className="unit">K</span>
+              </div>
+              <div style={{ marginTop: 8, fontSize: '12px' }}>
+                {stats.networkInfo.connections.top_ips && stats.networkInfo.connections.top_ips.length > 0 && (
+                  <div>
+                    <div style={{ fontWeight: 'bold', marginBottom: 4 }}>TOP5 IP:</div>
+                    {stats.networkInfo.connections.top_ips.slice(0, 5).map((item, index) => (
+                      <div key={index} style={{ fontSize: '11px', marginBottom: 2 }}>
+                        {item.ip} ({item.count})
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </Card>
         </Col>
@@ -571,82 +700,96 @@ const Dashboard = () => {
       {/* 第二行：磁盘使用情况、网络流量统计 */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col span={12}>
-          <Card className="hover-lift">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <Statistic
-                title="磁盘使用情况"
-                value={stats.systemInfo.disk.percent}
-                precision={2}
-                suffix="%"
-                valueStyle={{ color: stats.systemInfo.disk.percent > 90 ? '#ff4d4f' : '#52c41a' }}
-                prefix={<HddOutlined />}
-              />
+          <Card className="glass-card disk-card">
+            <div className="card-title disk-title">
+              <HddOutlined className="mr-2" />
+              磁盘使用情况
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center' }}>
-              {/* 主磁盘 */}
-              <div style={{ textAlign: 'center' }}>
-                <Progress
-                  type="circle"
-                  percent={stats.systemInfo.disk.percent}
-                  size={80}
-                  strokeColor={stats.systemInfo.disk.percent > 90 ? '#ff4d4f' : '#52c41a'}
-                  format={(percent) => (
-                    <div style={{ fontSize: '12px', fontWeight: 'bold' }}>
-                      <div>根目录</div>
-                      <div>{Math.round(percent)}%</div>
-                    </div>
-                  )}
-                />
-                <div style={{ marginTop: 8, fontSize: '11px', color: '#666' }}>
-                  {formatBytes(stats.systemInfo.disk.used)} / {formatBytes(stats.systemInfo.disk.total)}
-                </div>
-              </div>
-              
-              {/* 其他磁盘分区 */}
-              {stats.systemInfo.disk_partitions && stats.systemInfo.disk_partitions.length > 0 && 
-                stats.systemInfo.disk_partitions.slice(0, 3).map((partition, index) => (
-                  <div key={index} style={{ textAlign: 'center' }}>
-                    <Progress
-                      type="circle"
-                      percent={partition.percent}
-                      size={80}
-                      strokeColor={partition.percent > 90 ? '#ff4d4f' : '#52c41a'}
-                      format={(percent) => (
-                        <div style={{ fontSize: '12px', fontWeight: 'bold' }}>
-                          <div>{partition.mountpoint.split('/').pop() || '分区'}</div>
-                          <div>{Math.round(percent)}%</div>
-                        </div>
-                      )}
-                    />
-                    <div style={{ marginTop: 8, fontSize: '11px', color: '#666' }}>
-                      {formatBytes(partition.used)} / {formatBytes(partition.total)}
+            <div className="card-content">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div className="disk-value">
+                  <div className="flip-container">
+                    <div className="flip-digit" data-digit={Math.floor(stats.systemInfo.disk.percent / 10)}>
+                      {Math.floor(stats.systemInfo.disk.percent / 10)}
                     </div>
                   </div>
-                ))
-              }
+                  <div className="flip-container">
+                    <div className="flip-digit" data-digit={Math.floor(stats.systemInfo.disk.percent % 10)}>
+                      {Math.floor(stats.systemInfo.disk.percent % 10)}
+                    </div>
+                  </div>
+                  <span className="unit">%</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center' }}>
+                {/* 主磁盘 */}
+                <div style={{ textAlign: 'center' }}>
+                  <Progress
+                    type="circle"
+                    percent={stats.systemInfo.disk.percent}
+                    size={80}
+                    strokeColor={stats.systemInfo.disk.percent > 90 ? '#ff4d4f' : '#52c41a'}
+                    format={(percent) => (
+                      <div style={{ fontSize: '12px', fontWeight: 'bold' }}>
+                        <div>根目录</div>
+                        <div>{Math.round(percent)}%</div>
+                      </div>
+                    )}
+                  />
+                  <div style={{ marginTop: 8, fontSize: '11px', color: '#666' }}>
+                    {formatBytes(stats.systemInfo.disk.used)} / {formatBytes(stats.systemInfo.disk.total)}
+                  </div>
+                </div>
+                
+                {/* 其他磁盘分区 */}
+                {stats.systemInfo.disk_partitions && stats.systemInfo.disk_partitions.length > 0 && 
+                  stats.systemInfo.disk_partitions.slice(0, 3).map((partition, index) => (
+                    <div key={index} style={{ textAlign: 'center' }}>
+                      <Progress
+                        type="circle"
+                        percent={partition.percent}
+                        size={80}
+                        strokeColor={partition.percent > 90 ? '#ff4d4f' : '#52c41a'}
+                        format={(percent) => (
+                          <div style={{ fontSize: '12px', fontWeight: 'bold' }}>
+                            <div>{partition.mountpoint.split('/').pop() || '分区'}</div>
+                            <div>{Math.round(percent)}%</div>
+                          </div>
+                        )}
+                      />
+                      <div style={{ marginTop: 8, fontSize: '11px', color: '#666' }}>
+                        {formatBytes(partition.used)} / {formatBytes(partition.total)}
+                      </div>
+                    </div>
+                  ))
+                }
+              </div>
             </div>
           </Card>
         </Col>
         <Col span={12}>
-          <Card className="hover-lift network-traffic-card">
-            <Statistic
-              title="网络流量统计"
-              value={formatBytes(stats.networkInfo.traffic.bytes_sent + stats.networkInfo.traffic.bytes_recv)}
-              valueStyle={{ color: '#1890ff' }}
-              prefix={<DesktopOutlined />}
-            />
-            <div style={{ marginTop: 8, fontSize: '12px' }}>
-              <div>发送: {formatBytes(stats.networkInfo.traffic.bytes_sent)}</div>
-              <div>接收: {formatBytes(stats.networkInfo.traffic.bytes_recv)}</div>
-              <div>发送包: {stats.networkInfo.traffic.packets_sent}</div>
-              <div>接收包: {stats.networkInfo.traffic.packets_recv}</div>
-              {(stats.networkInfo.traffic.errin > 0 || stats.networkInfo.traffic.errout > 0 || 
-                stats.networkInfo.traffic.dropin > 0 || stats.networkInfo.traffic.dropout > 0) && (
-                <div style={{ marginTop: 4 }}>
-                  <Badge color="red" text={`错误: ${stats.networkInfo.traffic.errin + stats.networkInfo.traffic.errout}`} />
-                  <Badge color="orange" text={`丢包: ${stats.networkInfo.traffic.dropin + stats.networkInfo.traffic.dropout}`} />
-                </div>
-              )}
+          <Card className="glass-card traffic-card">
+            <div className="card-title traffic-title">
+              <DesktopOutlined className="mr-2" />
+              网络流量统计
+            </div>
+            <div className="card-content">
+              <div className="traffic-value">
+                {formatBytes(stats.networkInfo.traffic.bytes_sent + stats.networkInfo.traffic.bytes_recv)}
+              </div>
+              <div style={{ marginTop: 8, fontSize: '12px' }}>
+                <div>发送: {formatBytes(stats.networkInfo.traffic.bytes_sent)}</div>
+                <div>接收: {formatBytes(stats.networkInfo.traffic.bytes_recv)}</div>
+                <div>发送包: {stats.networkInfo.traffic.packets_sent}</div>
+                <div>接收包: {stats.networkInfo.traffic.packets_recv}</div>
+                {(stats.networkInfo.traffic.errin > 0 || stats.networkInfo.traffic.errout > 0 || 
+                  stats.networkInfo.traffic.dropin > 0 || stats.networkInfo.traffic.dropout > 0) && (
+                  <div style={{ marginTop: 4 }}>
+                    <Badge color="red" text={`错误: ${stats.networkInfo.traffic.errin + stats.networkInfo.traffic.errout}`} />
+                    <Badge color="orange" text={`丢包: ${stats.networkInfo.traffic.dropin + stats.networkInfo.traffic.dropout}`} />
+                  </div>
+                )}
+              </div>
             </div>
           </Card>
         </Col>
@@ -655,7 +798,7 @@ const Dashboard = () => {
       {/* 进程监控卡片 */}
        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
          <Col span={12}>
-           <Card title="CPU占用最高的进程" size="small">
+           <Card title="CPU占用最高的进程" size="small" className="glass-card">
              <Table
                columns={processColumns}
                dataSource={stats.processInfo.top_cpu_processes}
@@ -668,7 +811,7 @@ const Dashboard = () => {
            </Card>
          </Col>
          <Col span={12}>
-           <Card title="内存占用最高的进程" size="small">
+           <Card title="内存占用最高的进程" size="small" className="glass-card">
              <Table
                columns={processColumns}
                dataSource={stats.processInfo.top_memory_processes}
@@ -685,7 +828,7 @@ const Dashboard = () => {
                {/* 容器监控卡片 */}
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
           <Col span={24}>
-            <Card title={`Docker容器监控 (${stats.containerInfo.total_containers || 0}个运行中)`} size="small" className="hover-lift">
+            <Card title={`Docker容器监控 (${stats.containerInfo.total_containers || 0}个运行中)`} size="small" className="glass-card">
               {stats.containerInfo.containers && stats.containerInfo.containers.length > 0 ? (
                 <Table
                   columns={containerColumns}
@@ -716,8 +859,6 @@ const Dashboard = () => {
             </Card>
           </Col>
         </Row>
-
-
     </div>
   );
 };
