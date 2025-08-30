@@ -23,11 +23,11 @@
 .login-card {
   width: 400px;
   padding: 20px;
-  border-radius: var(--border-radius, 8px);
+  border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 
-  /* The Key for Glassmorphism Effect */
-  background: rgba(255, 255, 255, 0.6);
+  /* 半透明背景 */
+  background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -40,12 +40,12 @@
 
 .login-header h2 {
   margin-bottom: 8px;
-  color: var(--color-text-primary, #111827);
+  color: #111827;
   font-weight: 700;
 }
 
 .login-header p {
-  color: var(--color-text-secondary, #6B7281);
+  color: #6B7281;
 }
 
 .wallpaper-copyright {
@@ -59,41 +59,41 @@
 
 /* 输入框样式优化 */
 .login-input {
-  background: rgba(255, 255, 255, 0.1) !important;
-  border: 2px solid rgba(255, 255, 255, 0.3) !important;
-  color: #ffffff !important;
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 2px solid rgba(0, 0, 0, 0.1) !important;
+  color: #111827 !important;
+  border-radius: 12px !important;
   transition: all 0.3s ease;
 }
 
 .login-input:focus {
-  border-color: rgba(255, 255, 255, 0.6) !important;
-  background: rgba(255, 255, 255, 0.2) !important;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+  border-color: #1890ff !important;
+  background: rgba(255, 255, 255, 1) !important;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
 }
 
 .login-input::placeholder {
-  color: rgba(255, 255, 255, 0.7) !important;
+  color: #9CA3AF !important;
 }
 
 .login-input:focus::placeholder {
-  color: rgba(255, 255, 255, 0.9) !important;
+  color: #6B7281 !important;
 }
 
 /* 按钮样式优化 */
 .login-button {
-  background: rgba(255, 255, 255, 0.2) !important;
-  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  background: #1890ff !important;
+  border: 2px solid #1890ff !important;
   color: #ffffff !important;
-  backdrop-filter: blur(10px);
+  border-radius: 12px !important;
   transition: all 0.3s ease;
 }
 
 .login-button:hover {
-  background: rgba(255, 255, 255, 0.3) !important;
-  border-color: rgba(255, 255, 255, 0.5) !important;
+  background: #40a9ff !important;
+  border-color: #40a9ff !important;
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 16px rgba(24, 144, 255, 0.3);
 }
 
 .login-button:active {
@@ -102,11 +102,11 @@
 
 /* 图标样式 */
 .login-icon {
-  color: rgba(255, 255, 255, 0.7) !important;
+  color: #6B7281 !important;
 }
 
 .login-icon:hover {
-  color: rgba(255, 255, 255, 0.9) !important;
+  color: #374151 !important;
 }
 
 /* 响应式设计 */

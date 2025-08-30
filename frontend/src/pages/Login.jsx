@@ -99,14 +99,13 @@ const Login = () => {
       <Card className="login-card">
         <div className="login-header">
           <h2 style={{ 
-            color: '#ffffff', 
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+            color: '#111827', 
             marginBottom: '8px'
           }}>
             {wallpaperInfo.title}
           </h2>
           <p style={{ 
-            color: 'rgba(255, 255, 255, 0.8)',
+            color: '#6B7281',
             margin: 0
           }}>
             安全防护，智能管理
