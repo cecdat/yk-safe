@@ -129,16 +129,29 @@ def get_dashboard_data():
             
             # 按状态统计连接数
             connection_stats = defaultdict(int)
+            # 按IP地址统计连接数
+            ip_connection_stats = defaultdict(int)
+            
             for conn in connections:
                 if conn.status:
                     connection_stats[conn.status] += 1
+                
+                # 统计IP连接数
+                if conn.raddr and conn.raddr.ip:
+                    ip_connection_stats[conn.raddr.ip] += 1
+                if conn.laddr and conn.laddr.ip:
+                    ip_connection_stats[conn.laddr.ip] += 1
+            
+            # 获取TOP5 IP
+            top_ips = sorted(ip_connection_stats.items(), key=lambda x: x[1], reverse=True)[:5]
             
             connection_info = {
                 "total": network_connections,
                 "established": connection_stats.get('ESTABLISHED', 0),
                 "listening": connection_stats.get('LISTEN', 0),
                 "time_wait": connection_stats.get('TIME_WAIT', 0),
-                "close_wait": connection_stats.get('CLOSE_WAIT', 0)
+                "close_wait": connection_stats.get('CLOSE_WAIT', 0),
+                "top_ips": [{"ip": ip, "count": count} for ip, count in top_ips]
             }
         except (psutil.AccessDenied, psutil.ZombieProcess):
             connection_info = {
@@ -146,7 +159,8 @@ def get_dashboard_data():
                 "established": 0,
                 "listening": 0,
                 "time_wait": 0,
-                "close_wait": 0
+                "close_wait": 0,
+                "top_ips": []
             }
         
         # 网络流量统计
@@ -492,14 +506,27 @@ def get_container_info():
                     network_io = "N/A"
                     block_io = "N/A"
 
+                # 格式化创建时间
+                created_time = container_attrs.get('Created', '')
+                if created_time:
+                    try:
+                        # 将ISO格式时间转换为更友好的格式
+                        from datetime import datetime
+                        created_dt = datetime.fromisoformat(created_time.replace('Z', '+00:00'))
+                        created_formatted = created_dt.strftime('%Y-%m-%d %H:%M')
+                    except:
+                        created_formatted = created_time[:19] if len(created_time) > 19 else created_time
+                else:
+                    created_formatted = "N/A"
+
                 containers_data.append({
                     "name": container.name,
-                    "id": container.short_id,  # 增加容器ID，非常有用
+                    "id": container.short_id,
                     "image": ", ".join(container.image.tags) if container.image.tags else container.image.short_id,
                     "status": container.status,
-                    "created": container_attrs.get('Created', ''),  # 增加创建时间
+                    "created": created_formatted,
                     "ports": ports_str,
-                    "mounts": mounts_info,  # 使用格式化后的挂载信息
+                    "mounts": mounts_info,
                     "cpu_percent": f"{cpu_percent:.2f}" if isinstance(cpu_percent, float) else str(cpu_percent),
                     "memory_usage": f"{mem_usage} / {mem_limit}",
                     "memory_percent": mem_percent.replace('%', ''),

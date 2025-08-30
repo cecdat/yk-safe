@@ -49,7 +49,8 @@ const Dashboard = () => {
         established: 0,
         listening: 0,
         time_wait: 0,
-        close_wait: 0
+        close_wait: 0,
+        top_ips: []
       },
       traffic: {
         bytes_sent: 0,
@@ -101,7 +102,8 @@ const Dashboard = () => {
               established: 0,
               listening: 0,
               time_wait: 0,
-              close_wait: 0
+              close_wait: 0,
+              top_ips: []
             },
             traffic: {
               bytes_sent: 0,
@@ -248,10 +250,26 @@ const Dashboard = () => {
       width: 80,
       render: (status) => {
         let color = 'default';
-        if (status.includes('Up')) color = 'green';
-        else if (status.includes('Exited')) color = 'red';
-        else if (status.includes('Created')) color = 'orange';
-        return <Tag color={color}>{status}</Tag>;
+        let text = status;
+        
+        if (status.includes('Up') || status === 'running') {
+          color = 'green';
+          text = '运行中';
+        } else if (status.includes('Exited') || status === 'exited') {
+          color = 'red';
+          text = '已停止';
+        } else if (status.includes('Created') || status === 'created') {
+          color = 'orange';
+          text = '已创建';
+        } else if (status.includes('Restarting') || status === 'restarting') {
+          color = 'yellow';
+          text = '重启中';
+        } else if (status.includes('Paused') || status === 'paused') {
+          color = 'default';
+          text = '已暂停';
+        }
+        
+        return <Tag color={color}>{text}</Tag>;
       },
     },
     {
@@ -385,7 +403,7 @@ const Dashboard = () => {
 
       <Row gutter={[16, 16]}>
         <Col span={6}>
-          <Card className="hover-lift">
+          <Card className="hover-lift" size="small">
             <Statistic
               title="防火墙状态"
               value={stats.firewallStatus.is_running ? '运行中' : '已停止'}
@@ -394,16 +412,24 @@ const Dashboard = () => {
               }}
               prefix={stats.firewallStatus.is_running ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
             />
+            <div style={{ marginTop: 8, fontSize: '12px' }}>
+              <Tag color={stats.firewallStatus.is_running ? 'green' : 'red'}>
+                {stats.firewallStatus.is_running ? '运行' : '停止'}
+              </Tag>
+            </div>
           </Card>
         </Col>
         <Col span={6}>
-          <Card className="hover-lift">
+          <Card className="hover-lift" size="small">
             <Statistic
               title="防护规则"
-              value={stats.firewallStatus.rules_count}
+              value={stats.firewallStatus.rules_count || 0}
               valueStyle={{ color: '#1890ff' }}
               prefix={<SafetyOutlined />}
             />
+            <div style={{ marginTop: 8, fontSize: '12px' }}>
+              <Tag color="blue">规则数量</Tag>
+            </div>
           </Card>
         </Col>
                  <Col span={6}>
@@ -422,106 +448,58 @@ const Dashboard = () => {
            </Card>
          </Col>
          <Col span={6}>
-           <Card className="hover-lift">
-             <Statistic
-               title="内存使用率"
-               value={stats.systemInfo.memory.percent}
-               precision={2}
-               suffix="%"
-               valueStyle={{ color: stats.systemInfo.memory.percent > 80 ? '#ff4d4f' : '#52c41a' }}
-               prefix={<DatabaseOutlined />}
-             />
-           </Card>
-         </Col>
+          <Card className="hover-lift">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <Statistic
+                  title="内存使用率"
+                  value={stats.systemInfo.memory.percent}
+                  suffix="%"
+                  valueStyle={{
+                    color: stats.systemInfo.memory.percent > 90 ? '#ff4d4f' : 
+                           stats.systemInfo.memory.percent > 80 ? '#faad14' : '#52c41a'
+                  }}
+                  prefix={<HddOutlined />}
+                />
+                <div style={{ marginTop: 8, fontSize: '12px' }}>
+                  <div>总内存: {formatBytes(stats.systemInfo.memory.total)}</div>
+                  <div>已使用: {formatBytes(stats.systemInfo.memory.used)}</div>
+                  <div>可用: {formatBytes(stats.systemInfo.memory.free)}</div>
+                </div>
+              </div>
+              <div style={{ width: 80, height: 80 }}>
+                <Progress
+                  type="circle"
+                  percent={stats.systemInfo.memory.percent}
+                  size={80}
+                  strokeColor={
+                    stats.systemInfo.memory.percent > 90 ? '#ff4d4f' : 
+                    stats.systemInfo.memory.percent > 80 ? '#faad14' : '#52c41a'
+                  }
+                  format={(percent) => `${Math.round(percent)}%`}
+                />
+              </div>
+            </div>
+          </Card>
+        </Col>
       </Row>
 
       {/* 系统负载和磁盘使用卡片 */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col span={12}>
-          <Card 
-            title={
-              <Space>
-                系统负载
-                {(() => {
-                  const cpuCount = stats.systemInfo.cpu.count || 1;
-                  const load1min = stats.systemInfo.load.load_1min;
-                  if (load1min > cpuCount * 2.5) {
-                    return <Badge color="red" text="严重超载" />;
-                  } else if (load1min > cpuCount * 1.5) {
-                    return <Badge color="orange" text="负载较高" />;
-                  }
-                  return null;
-                })()}
-              </Space>
-            } 
-            size="small"
-            className="hover-lift system-load-card"
-          >
-            <Row gutter={16}>
-              <Col span={8}>
-                <Statistic
-                  title="1分钟"
-                  value={stats.systemInfo.load.load_1min}
-                  precision={2}
-                  valueStyle={{ 
-                    color: (() => {
-                      const cpuCount = stats.systemInfo.cpu.count || 1;
-                      const load = stats.systemInfo.load.load_1min;
-                      if (load > cpuCount * 2.5) return '#ff4d4f';
-                      if (load > cpuCount * 1.5) return '#faad14';
-                      return '#52c41a';
-                    })()
-                  }}
-                />
-              </Col>
-              <Col span={8}>
-                <Statistic
-                  title="5分钟"
-                  value={stats.systemInfo.load.load_5min}
-                  precision={2}
-                  valueStyle={{ 
-                    color: (() => {
-                      const cpuCount = stats.systemInfo.cpu.count || 1;
-                      const load = stats.systemInfo.load.load_5min;
-                      if (load > cpuCount * 2.5) return '#ff4d4f';
-                      if (load > cpuCount * 1.5) return '#faad14';
-                      return '#52c41a';
-                    })()
-                  }}
-                />
-              </Col>
-              <Col span={8}>
-                <Statistic
-                  title="15分钟"
-                  value={stats.systemInfo.load.load_15min}
-                  precision={2}
-                  valueStyle={{ 
-                    color: (() => {
-                      const cpuCount = stats.systemInfo.cpu.count || 1;
-                      const load = stats.systemInfo.load.load_15min;
-                      if (load > cpuCount * 2.5) return '#ff4d4f';
-                      if (load > cpuCount * 1.5) return '#faad14';
-                      return '#52c41a';
-                    })()
-                  }}
-                />
-              </Col>
-            </Row>
-            <div style={{ marginTop: 16 }}>
-              <div style={{ marginBottom: 8 }}>
-                <span>每CPU负载: {parseFloat(stats.systemInfo.load.load_per_cpu).toFixed(2)}</span>
-              </div>
-              <Progress 
-                percent={Math.min((stats.systemInfo.load.load_1min / (stats.systemInfo.cpu.count || 1)) * 100, 100)} 
-                size="small"
-                status={(() => {
-                  const cpuCount = stats.systemInfo.cpu.count || 1;
-                  const load = stats.systemInfo.load.load_1min;
-                  if (load > cpuCount * 2.5) return 'exception';
-                  if (load > cpuCount * 1.5) return 'active';
-                  return 'normal';
-                })()}
-              />
+        <Col span={6}>
+          <Card className="hover-lift">
+            <Statistic
+              title="系统负载"
+              value={stats.systemInfo.load.load_1min}
+              precision={2}
+              valueStyle={{ color: '#1890ff' }}
+              prefix={<DesktopOutlined />}
+            />
+            <div style={{ marginTop: 8, fontSize: '12px' }}>
+              <div>1分钟: {stats.systemInfo.load.load_1min}</div>
+              <div>5分钟: {stats.systemInfo.load.load_5min}</div>
+              <div>15分钟: {stats.systemInfo.load.load_15min}</div>
+              <div>每CPU: {stats.systemInfo.load.load_per_cpu}</div>
             </div>
           </Card>
         </Col>
@@ -622,64 +600,40 @@ const Dashboard = () => {
 
       {/* 网络连接数和流量统计卡片 */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col span={12}>
-          <Card 
-            title={
-              <Space>
-                网络连接数
-                {(() => {
-                  const total = stats.networkInfo.connections.total;
-                  if (total > 10000) {
-                    return <Badge color="red" text="连接数过多" />;
-                  } else if (total > 5000) {
-                    return <Badge color="orange" text="连接数较高" />;
-                  }
-                  return null;
-                })()}
-              </Space>
-            } 
-            size="small"
-            className="hover-lift network-connections-card"
-          >
-            <Row gutter={16}>
-              <Col span={12}>
-                <Statistic
-                  title="总连接数"
-                  value={stats.networkInfo.connections.total}
-                  valueStyle={{ color: '#1890ff' }}
-                />
-              </Col>
-              <Col span={12}>
-                <Statistic
-                  title="已建立"
-                  value={stats.networkInfo.connections.established}
-                  valueStyle={{ color: '#52c41a' }}
-                />
-              </Col>
-            </Row>
-            <Row gutter={16} style={{ marginTop: 16 }}>
-              <Col span={8}>
-                <Statistic
-                  title="监听"
-                  value={stats.networkInfo.connections.listening}
-                  valueStyle={{ color: '#faad14' }}
-                />
-              </Col>
-              <Col span={8}>
-                <Statistic
-                  title="等待关闭"
-                  value={stats.networkInfo.connections.time_wait}
-                  valueStyle={{ color: '#722ed1' }}
-                />
-              </Col>
-              <Col span={8}>
-                <Statistic
-                  title="关闭等待"
-                  value={stats.networkInfo.connections.close_wait}
-                  valueStyle={{ color: '#eb2f96' }}
-                />
-              </Col>
-            </Row>
+        <Col span={6}>
+          <Card className="hover-lift network-connections-card">
+            <Statistic
+              title="网络连接数"
+              value={stats.networkInfo.connections.total}
+              valueStyle={{ color: '#1890ff' }}
+              prefix={<DesktopOutlined />}
+            />
+            <div style={{ marginTop: 8, fontSize: '12px' }}>
+              <div style={{ marginBottom: 4 }}>
+                <span style={{ color: '#52c41a' }}>●</span> 已建立: {stats.networkInfo.connections.established}
+              </div>
+              <div style={{ marginBottom: 4 }}>
+                <span style={{ color: '#faad14' }}>●</span> 监听: {stats.networkInfo.connections.listening}
+              </div>
+              <div style={{ marginBottom: 4 }}>
+                <span style={{ color: '#722ed1' }}>●</span> 等待: {stats.networkInfo.connections.time_wait}
+              </div>
+              {stats.networkInfo.connections.top_ips && stats.networkInfo.connections.top_ips.length > 0 && (
+                <div style={{ marginTop: 8, borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: 4 }}>TOP5 IP:</div>
+                  {stats.networkInfo.connections.top_ips.slice(0, 3).map((item, index) => (
+                    <div key={index} style={{ fontSize: '11px', marginBottom: 2 }}>
+                      {item.ip}: {item.count}
+                    </div>
+                  ))}
+                  {stats.networkInfo.connections.top_ips.length > 3 && (
+                    <div style={{ fontSize: '11px', color: '#999' }}>
+                      +{stats.networkInfo.connections.top_ips.length - 3} 更多...
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </Card>
         </Col>
         

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Card, message, Spin } from 'antd';
-import { UserOutlined, LockOutlined, LoadingOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Card, message, Spin, Badge } from 'antd';
+import { UserOutlined, LockOutlined, LoadingOutlined, SafetyOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getWallpaperInfo } from '../api/external';
@@ -23,7 +23,11 @@ const Login = () => {
       try {
         setWallpaperLoading(true);
         const info = await getWallpaperInfo();
-        setWallpaperInfo(info);
+        // 确保标题始终是中文
+        setWallpaperInfo({
+          ...info,
+          title: '封神云防护系统'
+        });
       } catch (error) {
         console.warn('无法获取壁纸，使用默认背景');
         // 使用默认信息
@@ -103,7 +107,7 @@ const Login = () => {
             marginBottom: '8px',
             textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
           }}>
-            {wallpaperInfo.title}
+            封神云防护系统
           </h2>
           <p style={{ 
             color: 'rgba(255, 255, 255, 0.9)',
@@ -153,21 +157,26 @@ const Login = () => {
           </Form.Item>
 
           <Form.Item style={{ marginBottom: '0' }}>
-            <Button 
-              type="primary" 
-              htmlType="submit" 
-              loading={loading}
-              className="login-button"
-              style={{ 
-                width: '100%',
-                height: '48px',
-                borderRadius: '12px',
-                fontSize: '16px',
-                fontWeight: '600'
-              }}
-            >
-              登录
-            </Button>
+            <Badge.Ribbon text="安全登录" color="green">
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                loading={loading}
+                className="login-button"
+                style={{ 
+                  width: '100%',
+                  height: '48px',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  background: '#52c41a',
+                  borderColor: '#52c41a'
+                }}
+                icon={<SafetyOutlined />}
+              >
+                登录
+              </Button>
+            </Badge.Ribbon>
           </Form.Item>
         </Form>
       </Card>
