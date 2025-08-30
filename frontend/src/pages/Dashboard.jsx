@@ -43,6 +43,25 @@ const Dashboard = () => {
       load: { load_1min: 0, load_5min: 0, load_15min: 0, load_per_cpu: 0 },
       disk_partitions: []
     },
+    networkInfo: {
+      connections: {
+        total: 0,
+        established: 0,
+        listening: 0,
+        time_wait: 0,
+        close_wait: 0
+      },
+      traffic: {
+        bytes_sent: 0,
+        bytes_recv: 0,
+        packets_sent: 0,
+        packets_recv: 0,
+        errin: 0,
+        errout: 0,
+        dropin: 0,
+        dropout: 0
+      }
+    },
     processInfo: {
       total_processes: 0,
       top_cpu_processes: [],
@@ -75,6 +94,25 @@ const Dashboard = () => {
             disk: { total: 0, used: 0, percent: 0 },
             load: { load_1min: 0, load_5min: 0, load_15min: 0, load_per_cpu: 0 },
             disk_partitions: []
+          }),
+          networkInfo: ensureObject(dashboardData.network_info, {
+            connections: {
+              total: 0,
+              established: 0,
+              listening: 0,
+              time_wait: 0,
+              close_wait: 0
+            },
+            traffic: {
+              bytes_sent: 0,
+              bytes_recv: 0,
+              packets_sent: 0,
+              packets_recv: 0,
+              errin: 0,
+              errout: 0,
+              dropin: 0,
+              dropout: 0
+            }
           }),
           processInfo: ensureObject(dashboardData.process_info, {
             total_processes: 0,
@@ -582,9 +620,141 @@ const Dashboard = () => {
         </Col>
       </Row>
 
+      {/* 网络连接数和流量统计卡片 */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col span={12}>
+          <Card 
+            title={
+              <Space>
+                网络连接数
+                {(() => {
+                  const total = stats.networkInfo.connections.total;
+                  if (total > 10000) {
+                    return <Badge color="red" text="连接数过多" />;
+                  } else if (total > 5000) {
+                    return <Badge color="orange" text="连接数较高" />;
+                  }
+                  return null;
+                })()}
+              </Space>
+            } 
+            size="small"
+            className="hover-lift network-connections-card"
+          >
+            <Row gutter={16}>
+              <Col span={12}>
+                <Statistic
+                  title="总连接数"
+                  value={stats.networkInfo.connections.total}
+                  valueStyle={{ color: '#1890ff' }}
+                />
+              </Col>
+              <Col span={12}>
+                <Statistic
+                  title="已建立"
+                  value={stats.networkInfo.connections.established}
+                  valueStyle={{ color: '#52c41a' }}
+                />
+              </Col>
+            </Row>
+            <Row gutter={16} style={{ marginTop: 16 }}>
+              <Col span={8}>
+                <Statistic
+                  title="监听"
+                  value={stats.networkInfo.connections.listening}
+                  valueStyle={{ color: '#faad14' }}
+                />
+              </Col>
+              <Col span={8}>
+                <Statistic
+                  title="等待关闭"
+                  value={stats.networkInfo.connections.time_wait}
+                  valueStyle={{ color: '#722ed1' }}
+                />
+              </Col>
+              <Col span={8}>
+                <Statistic
+                  title="关闭等待"
+                  value={stats.networkInfo.connections.close_wait}
+                  valueStyle={{ color: '#eb2f96' }}
+                />
+              </Col>
+            </Row>
+          </Card>
+        </Col>
+        
+        <Col span={12}>
+          <Card 
+            title={
+              <Space>
+                网络流量统计
+                {(() => {
+                  const errors = stats.networkInfo.traffic.errin + stats.networkInfo.traffic.errout;
+                  const drops = stats.networkInfo.traffic.dropin + stats.networkInfo.traffic.dropout;
+                  if (errors > 100 || drops > 50) {
+                    return <Badge color="red" text="网络异常" />;
+                  } else if (errors > 10 || drops > 5) {
+                    return <Badge color="orange" text="网络警告" />;
+                  }
+                  return null;
+                })()}
+              </Space>
+            } 
+            size="small"
+            className="hover-lift network-traffic-card"
+          >
+            <Row gutter={16}>
+              <Col span={12}>
+                <Statistic
+                  title="发送流量"
+                  value={formatBytes(stats.networkInfo.traffic.bytes_sent)}
+                  valueStyle={{ color: '#52c41a' }}
+                />
+              </Col>
+              <Col span={12}>
+                <Statistic
+                  title="接收流量"
+                  value={formatBytes(stats.networkInfo.traffic.bytes_recv)}
+                  valueStyle={{ color: '#1890ff' }}
+                />
+              </Col>
+            </Row>
+            <Row gutter={16} style={{ marginTop: 16 }}>
+              <Col span={8}>
+                <Statistic
+                  title="发送包数"
+                  value={stats.networkInfo.traffic.packets_sent}
+                  valueStyle={{ color: '#faad14' }}
+                />
+              </Col>
+              <Col span={8}>
+                <Statistic
+                  title="接收包数"
+                  value={stats.networkInfo.traffic.packets_recv}
+                  valueStyle={{ color: '#722ed1' }}
+                />
+              </Col>
+              <Col span={8}>
+                <Statistic
+                  title="错误/丢包"
+                  value={`${stats.networkInfo.traffic.errin + stats.networkInfo.traffic.errout}/${stats.networkInfo.traffic.dropin + stats.networkInfo.traffic.dropout}`}
+                  valueStyle={{ 
+                    color: (() => {
+                      const errors = stats.networkInfo.traffic.errin + stats.networkInfo.traffic.errout;
+                      const drops = stats.networkInfo.traffic.dropin + stats.networkInfo.traffic.dropout;
+                      if (errors > 100 || drops > 50) return '#ff4d4f';
+                      if (errors > 10 || drops > 5) return '#faad14';
+                      return '#52c41a';
+                    })()
+                  }}
+                />
+              </Col>
+            </Row>
+          </Card>
+        </Col>
+      </Row>
 
-
-       {/* 进程监控卡片 */}
+      {/* 进程监控卡片 */}
        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
          <Col span={12}>
            <Card title="CPU占用最高的进程" size="small">

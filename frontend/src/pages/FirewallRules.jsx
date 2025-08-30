@@ -551,7 +551,8 @@ const FirewallRules = () => {
            form.resetFields();
          }}
          footer={null}
-         width={800}
+         width={600}
+         centered
        >
                  {/* 模式提示信息 */}
          {!editingRule && (

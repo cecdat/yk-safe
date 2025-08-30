@@ -126,8 +126,53 @@ def get_dashboard_data():
         try:
             connections = psutil.net_connections()
             network_connections = len(connections)
+            
+            # 按状态统计连接数
+            connection_stats = defaultdict(int)
+            for conn in connections:
+                if conn.status:
+                    connection_stats[conn.status] += 1
+            
+            connection_info = {
+                "total": network_connections,
+                "established": connection_stats.get('ESTABLISHED', 0),
+                "listening": connection_stats.get('LISTEN', 0),
+                "time_wait": connection_stats.get('TIME_WAIT', 0),
+                "close_wait": connection_stats.get('CLOSE_WAIT', 0)
+            }
         except (psutil.AccessDenied, psutil.ZombieProcess):
-            network_connections = 0
+            connection_info = {
+                "total": 0,
+                "established": 0,
+                "listening": 0,
+                "time_wait": 0,
+                "close_wait": 0
+            }
+        
+        # 网络流量统计
+        try:
+            net_io = psutil.net_io_counters()
+            traffic_info = {
+                "bytes_sent": net_io.bytes_sent,
+                "bytes_recv": net_io.bytes_recv,
+                "packets_sent": net_io.packets_sent,
+                "packets_recv": net_io.packets_recv,
+                "errin": net_io.errin,
+                "errout": net_io.errout,
+                "dropin": net_io.dropin,
+                "dropout": net_io.dropout
+            }
+        except Exception:
+            traffic_info = {
+                "bytes_sent": 0,
+                "bytes_recv": 0,
+                "packets_sent": 0,
+                "packets_recv": 0,
+                "errin": 0,
+                "errout": 0,
+                "dropin": 0,
+                "dropout": 0
+            }
         
         dashboard_data = {
             "system_info": {
@@ -148,8 +193,11 @@ def get_dashboard_data():
                     "percent": disk.percent
                 },
                 "load": load_info,
-                "disk_partitions": disk_partitions,
-                "network_connections": network_connections
+                "disk_partitions": disk_partitions
+            },
+            "network_info": {
+                "connections": connection_info,
+                "traffic": traffic_info
             },
             "process_info": process_info,
             "container_info": container_info,
